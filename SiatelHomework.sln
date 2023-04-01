@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SiatelHomework", "SiatelHomework.vcxproj", "{EAD361E1-6E79-46B8-A0F5-E8752EA8584C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{EAD361E1-6E79-46B8-A0F5-E8752EA8584C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{EAD361E1-6E79-46B8-A0F5-E8752EA8584C}.Debug|Win32.Build.0 = Debug|Win32
+		{EAD361E1-6E79-46B8-A0F5-E8752EA8584C}.Release|Win32.ActiveCfg = Release|Win32
+		{EAD361E1-6E79-46B8-A0F5-E8752EA8584C}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
