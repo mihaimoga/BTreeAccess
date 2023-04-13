@@ -83,7 +83,7 @@ FONT 8, "MS Shell Dlg", 0, 0, 0x1
 BEGIN
     ICON            IDR_MAINFRAME,IDC_STATIC,14,14,20,20
     LTEXT           "Siatel Homework, Version 1.3",IDC_VERSION,48,14,115,8,SS_NOPREFIX
-    LTEXT           "Copyright (C) 2023 Mihai Moga",IDC_STATIC,48,26,115,8
+    LTEXT           "Copyright 2023 Stefan-Mihai MOGA",IDC_STATIC,48,26,115,8
     DEFPUSHBUTTON   "OK",IDCANCEL,100,160,63,17,WS_GROUP
     EDITTEXT        IDC_WARNING,7,40,156,80,ES_MULTILINE | ES_READONLY | ES_WANTRETURN
     RTEXT           "Website:",IDC_STATIC,7,128,41,12
@@ -164,7 +164,7 @@ BEGIN
             VALUE "FileDescription", "BTreeAccess"
             VALUE "FileVersion", "1.3.0.0"
             VALUE "InternalName", "SiatelHomework.exe"
-            VALUE "LegalCopyright", "Copyright © 2023 Mihai Moga - All rights reserved."
+            VALUE "LegalCopyright", "Copyright 2023 Stefan-Mihai MOGA - All rights reserved."
             VALUE "OriginalFilename", "SiatelHomework.exe"
             VALUE "ProductName", "SIATEL Homework"
             VALUE "ProductVersion", "1.3.0.0"
