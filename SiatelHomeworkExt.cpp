@@ -84,7 +84,7 @@ BOOL CNetworkBase::FileExists(CString strFilename)
 
 BOOL CNetworkBase::IsValidCode(CString strFileCode)
 {
-	const int nLength = (int)strFileCode.GetLength();
+	const int nLength = strFileCode.GetLength();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
 	{
 		TCHAR chDigit = strFileCode.GetAt(nIndex);

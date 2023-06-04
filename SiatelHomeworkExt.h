@@ -40,7 +40,7 @@ typedef CMap<int, int, int, int> CFileCodeMap;
 typedef CMap<int, int, CString, CString> CFilePathMap;
 
 const static CString strNetworkDigitString = _T("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ");
-const static int intNetworkDigitLength = _tcslen(strNetworkDigitString);
+const static int intNetworkDigitLength = (int)_tcslen(strNetworkDigitString);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////// CNetworkBase ////////////////////////////////
@@ -146,7 +146,7 @@ protected:
 	CFilePathMap m_mapFilePath;
 
 public:
-	inline int GetSize() { return m_listKey.GetCount(); } 
+	inline int GetSize() { return (int)m_listKey.GetCount(); }
 	inline int GetKey(int nIndex) { return m_listKey.GetAt(nIndex); };
 
 	void RemoveAll();

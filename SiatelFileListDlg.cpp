@@ -68,7 +68,7 @@ BOOL CSiatelFileListDlg::OnInitDialog()
 	if (USE_HASH_METHOD)
 	{
 		ASSERT(m_hashNetwork != NULL);
-		const int nLength = m_hashNetwork->GetSize();
+		const int nLength = (int)m_hashNetwork->GetSize();
 		for (int nIndex = 0; nIndex < nLength; nIndex++)
 		{
 			strIndex.Format(_T("%d"), nIndex);
