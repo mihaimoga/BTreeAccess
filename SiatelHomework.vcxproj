@@ -188,7 +188,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="FileDialogST.cpp" />
-    <ClCompile Include="HyperlinkStatic.cpp" />
+    <ClCompile Include="HLinkCtrl.cpp" />
     <ClCompile Include="SiatelFileListDlg.cpp" />
     <ClCompile Include="SiatelHomework.cpp" />
     <ClCompile Include="SiatelHomeworkDlg.cpp" />
@@ -203,7 +203,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="FileDialogST.h" />
-    <ClInclude Include="HyperlinkStatic.h" />
+    <ClInclude Include="HLinkCtrl.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SiatelFileListDlg.h" />
     <ClInclude Include="SiatelHomework.h" />
