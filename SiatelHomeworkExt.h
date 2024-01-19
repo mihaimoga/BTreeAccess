@@ -66,9 +66,9 @@ public:
 
 	CString FormatLastError(DWORD dwLastError);
 
-	BOOL FileExists(CString strFilename);
+	bool FileExists(CString strFilename);
 
-	BOOL IsValidCode(CString strFileCode);
+	bool IsValidCode(CString strFileCode);
 	CString EncodeNetworkID(int nKey);
 	int DecodeNetworkID(CString strKey);
 
@@ -78,7 +78,7 @@ public:
 	CString FormatFilename(int nKey);
 
 	CString GetFilePath(int nKey, CStringArray & arrFilePath);
-	BOOL CreateNetworkPath(CString strRootFolder, CStringArray & strSubFolders);
+	bool CreateNetworkPath(CString strRootFolder, CStringArray & strSubFolders);
 };
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -93,7 +93,7 @@ public:
 	~CNetworkTree();
 
 protected:
-	BOOL m_boolLeaf;
+	bool m_boolLeaf;
 	UINT m_uintSize;
 	CNetworkTree * m_ptrRoot;
 	CIntegerArray m_listKey; // random integer
@@ -104,8 +104,8 @@ public:
 	inline CNetworkTree * GetLink(int nIndex) { return m_ptrLink[nIndex]; }
 	inline void SetLink(int nIndex, CNetworkTree * pTree) { m_ptrLink[nIndex] = pTree; }
 
-	inline BOOL GetLeaf() { return m_boolLeaf; } 
-	inline void SetLeaf(BOOL bLeaf) { m_boolLeaf = bLeaf; }
+	inline bool GetLeaf() { return m_boolLeaf; }
+	inline void SetLeaf(bool bLeaf) { m_boolLeaf = bLeaf; }
 
 	inline UINT GetSize() { return m_uintSize; } 
 	inline void SetSize(UINT nSize) { m_uintSize = nSize; }
@@ -113,19 +113,19 @@ public:
 	inline CNetworkTree * GetRoot() { return m_ptrRoot; } 
 	inline void SetRoot(CNetworkTree * pRoot) { m_ptrRoot = pRoot; }
 
-	BOOL ImportData();
-	BOOL ExportData();
+	bool ImportData();
+	bool ExportData();
 
 	int GenerateID();
 
-	BOOL CreateTree();
-	BOOL DeleteTree();
+	bool CreateTree();
+	bool DeleteTree();
 
-	BOOL SearchNode(int nKey, CString & strFilePath);
-	/*BOOL UpdateNode(int nKey, CString strFilePath);
+	bool SearchNode(int nKey, CString & strFilePath);
+	/*bool UpdateNode(int nKey, CString strFilePath);
 
-	BOOL InsertNode(int nKey, CString strFilePath);
-	BOOL InsertEmpty(int nKey, CString strFilePath);*/
+	bool InsertNode(int nKey, CString strFilePath);
+	bool InsertEmpty(int nKey, CString strFilePath);*/
 
 };
 
@@ -151,16 +151,16 @@ public:
 
 	void RemoveAll();
 
-	BOOL ImportData();
-	BOOL ExportData();
+	bool ImportData();
+	bool ExportData();
 
 	int GenerateID();
 
-	BOOL SearchItem(int nKey, int & nLevel, CString & strFilePath);
-	BOOL UpdateItem(int nKey, int nLevel, CString strFilePath);
+	bool SearchItem(int nKey, int & nLevel, CString & strFilePath);
+	bool UpdateItem(int nKey, int nLevel, CString strFilePath);
 
-	BOOL InsertItem(int nKey, int nLevel, CString strFilePath);
-	BOOL DeleteItem(int nKey);
+	bool InsertItem(int nKey, int nLevel, CString strFilePath);
+	bool DeleteItem(int nKey);
 };
 
 #endif // __SIATELHOMEWORKEXT__

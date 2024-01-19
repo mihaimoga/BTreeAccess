@@ -19,10 +19,10 @@ BTreeAccess. If not, see <http://www.opensource.org/licenses/gpl-3.0.html>*/
 #include "SiatelHomeworkDlg.h"
 #include "SiatelHomeworkExt.h"
 #include "SiatelFileListDlg.h"
-#include "FileDialogST.h"
 
 #include "VersionInfo.h"
 #include "HLinkCtrl.h"
+#include "FolderDlg.h"
 
 #ifdef _DEBUG
 #define new DEBUG_NEW
@@ -124,7 +124,7 @@ CSiatelHomeworkDlg::CSiatelHomeworkDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CSiatelHomeworkDlg::IDD, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
-	m_treeNetwork = NULL; m_hashNetwork = NULL;
+	m_treeNetwork = nullptr; m_hashNetwork = nullptr;
 }
 
 void CSiatelHomeworkDlg::DoDataExchange(CDataExchange* pDX)
@@ -175,9 +175,9 @@ BOOL CSiatelHomeworkDlg::OnInitDialog()
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
 	CMenu* pSysMenu = GetSystemMenu(FALSE);
-	if (pSysMenu != NULL)
+	if (pSysMenu != nullptr)
 	{
-		BOOL bNameValid;
+		bool bNameValid;
 		CString strAboutMenu;
 		bNameValid = strAboutMenu.LoadString(IDS_ABOUTBOX);
 		ASSERT(bNameValid);
@@ -255,25 +255,25 @@ void CSiatelHomeworkDlg::OnDestroy()
 
 	if (USE_HASH_METHOD)
 	{
-		ASSERT(m_hashNetwork != NULL);
+		ASSERT(m_hashNetwork != nullptr);
 		m_hashNetwork->ExportData();
 	}
 	else
 	{
-		ASSERT(m_treeNetwork != NULL);
+		ASSERT(m_treeNetwork != nullptr);
 		m_treeNetwork->ExportData();
 	}
 
-	if (m_treeNetwork != NULL)
+	if (m_treeNetwork != nullptr)
 	{
 		delete m_treeNetwork;
-		m_treeNetwork = NULL;
+		m_treeNetwork = nullptr;
 	}
 
-	if (m_hashNetwork != NULL)
+	if (m_hashNetwork != nullptr)
 	{
 		delete m_hashNetwork;
-		m_hashNetwork = NULL;
+		m_hashNetwork = nullptr;
 	}
 }
 
@@ -381,10 +381,10 @@ void CSiatelHomeworkDlg::OnBnClickedBrowse()
 {
 	const UINT nFolderFlags = BIF_RETURNFSANCESTORS | BIF_RETURNONLYFSDIRS | BIF_USENEWUI | BIF_VALIDATE;
 
-	CFileDialogST dlgFileDialog;
-	if (dlgFileDialog.SelectFolder(NULL, m_strRootFolder, nFolderFlags, this) == IDOK)
+	CFolderDialog dlgFileDialog(nullptr, m_strRootFolder, this, nFolderFlags);
+	if (dlgFileDialog.DoModal() == IDOK)
 	{
-		m_strRootFolder = dlgFileDialog.GetSelectedFolder();
+		m_strRootFolder = dlgFileDialog.GetFolderPath();
 		const UINT lenRootFolder = m_strRootFolder.GetLength();
 		if (lenRootFolder > 0)
 		{
@@ -394,7 +394,7 @@ void CSiatelHomeworkDlg::OnBnClickedBrowse()
 			m_strFileList.Format(_T("%sfilelist.txt"), static_cast<LPCWSTR>(m_strRootFolder));
 			if (USE_HASH_METHOD)
 			{
-				ASSERT(m_hashNetwork != NULL);
+				ASSERT(m_hashNetwork != nullptr);
 				m_hashNetwork->RemoveAll();
 				m_hashNetwork->SetFileList(m_strFileList);
 				m_hashNetwork->SetRootFolder(m_strRootFolder);
@@ -402,7 +402,7 @@ void CSiatelHomeworkDlg::OnBnClickedBrowse()
 			}
 			else
 			{
-				ASSERT(m_treeNetwork != NULL);
+				ASSERT(m_treeNetwork != nullptr);
 				m_treeNetwork->DeleteTree();
 				m_treeNetwork->SetFileList(m_strFileList);
 				m_treeNetwork->SetRootFolder(m_strRootFolder);
@@ -425,7 +425,7 @@ void CSiatelHomeworkDlg::OnBnClickedFileList()
 
 void CSiatelHomeworkDlg::OnBnClickedInputFile()
 {
-	CFileDialogST pFileDialog(TRUE, NULL, NULL,
+	CFileDialog pFileDialog(TRUE, nullptr, nullptr,
 		OFN_FILEMUSTEXIST | OFN_HIDEREADONLY | OFN_LONGNAMES,
 		_T("All files\0*.*\0"), this);
 	if (pFileDialog.DoModal() == IDOK)
@@ -450,7 +450,7 @@ void CSiatelHomeworkDlg::OnBnClickedUpload()
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
+			ASSERT(m_hashNetwork != nullptr);
 			int nFileCode = m_hashNetwork->GenerateID();
 			int nPathCode = m_hashNetwork->GetSize();
 			CString strFileCode = m_hashNetwork->EncodeNetworkID(nFileCode);
@@ -486,7 +486,7 @@ void CSiatelHomeworkDlg::OnBnClickedUpload()
 
 void CSiatelHomeworkDlg::OnBnClickedOutputFile()
 {
-	CFileDialogST pFileDialog(FALSE, NULL, NULL,
+	CFileDialog pFileDialog(FALSE, nullptr, nullptr,
 		OFN_HIDEREADONLY | OFN_OVERWRITEPROMPT | OFN_LONGNAMES | OFN_PATHMUSTEXIST,
 		_T("All files\0*.*\0"), this);
 	if (pFileDialog.DoModal() == IDOK)
@@ -512,7 +512,7 @@ void CSiatelHomeworkDlg::OnBnClickedDownload()
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
+			ASSERT(m_hashNetwork != nullptr);
 			if (!m_hashNetwork->IsValidCode(m_strInputCode))
 			{
 				m_ctrlMessage.SetWindowText(INVALID_CHARS);
@@ -572,7 +572,7 @@ void CSiatelHomeworkDlg::OnBnClickedDelete()
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
+			ASSERT(m_hashNetwork != nullptr);
 			if (!m_hashNetwork->IsValidCode(m_strDeleteCode))
 			{
 				m_ctrlMessage.SetWindowText(INVALID_CHARS);
@@ -645,7 +645,7 @@ DWORD CALLBACK CSiatelHomeworkDlg::ProgressFunc(
 	UNREFERENCED_PARAMETER(hSourceFile);
 	UNREFERENCED_PARAMETER(hDestinationFile);
 
-	ASSERT(lpData != NULL);
+	ASSERT(lpData != nullptr);
 	float nFileSize = (float)TotalFileSize.QuadPart;
 	float nTransferred = (float)TotalBytesTransferred.QuadPart;
 	if (TotalFileSize.QuadPart != 0)

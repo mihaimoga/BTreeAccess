@@ -41,19 +41,19 @@ CNetworkBase::~CNetworkBase()
 
 CString CNetworkBase::FormatLastError(DWORD dwLastError)
 {
-	LPVOID lpMsgBuf = NULL;
+	LPVOID lpMsgBuf = nullptr;
 	CString	strLastError;
 
 	FormatMessage( 
 		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
 		FORMAT_MESSAGE_FROM_SYSTEM | 
 		FORMAT_MESSAGE_IGNORE_INSERTS,
-		NULL,
+		nullptr,
 		dwLastError,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 		(LPTSTR) &lpMsgBuf,
 		0,
-		NULL);
+		nullptr);
 	strLastError = (LPCTSTR)lpMsgBuf; 
 	//Trim CR/LF from the error message.
 	strLastError.TrimRight();
@@ -66,7 +66,7 @@ CString CNetworkBase::FormatLastError(DWORD dwLastError)
 	return strLastError;
 }
 
-BOOL CNetworkBase::FileExists(CString strFilename)
+bool CNetworkBase::FileExists(CString strFilename)
 {
 	const UINT nBinaryFileFlags = CFile::modeRead | CFile::typeBinary;
 	try {
@@ -77,21 +77,21 @@ BOOL CNetworkBase::FileExists(CString strFilename)
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
 		pFileException->Delete();
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkBase::IsValidCode(CString strFileCode)
+bool CNetworkBase::IsValidCode(CString strFileCode)
 {
 	const int nLength = strFileCode.GetLength();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
 	{
 		TCHAR chDigit = strFileCode.GetAt(nIndex);
 		if (-1 == strNetworkDigitString.Find(chDigit))
-			return FALSE;
+			return false;
 	}
-	return TRUE;
+	return true;
 }
 
 CString CNetworkBase::EncodeNetworkID(int nKey)
@@ -153,7 +153,7 @@ CString CNetworkBase::FormatFilename(int nKey)
 
 CString CNetworkBase::GetFilePath(int nKey, CStringArray & arrFilePath)
 {
-	BOOL bFirstTime = TRUE;
+	bool bFirstTime = true;
 	CString strFilePath;
 	arrFilePath.RemoveAll();
 	int folder_no = nKey % BALANCED_TREE_ORDER;
@@ -163,7 +163,7 @@ CString CNetworkBase::GetFilePath(int nKey, CStringArray & arrFilePath)
 		if (bFirstTime)
 		{
 			strFilePath = FormatFilename(folder_no);
-			bFirstTime = FALSE;
+			bFirstTime = false;
 		}
 		else
 		{
@@ -191,11 +191,11 @@ CString CNetworkBase::GetFilePath(int nKey, CStringArray & arrFilePath)
 	return strFilePath;
 }
 
-BOOL CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray & strSubFolders)
+bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray & strSubFolders)
 {
 	CString strNetworkPath = strRootFolder;
 	if (!SetCurrentDirectory(strNetworkPath))
-		return FALSE;
+		return false;
 
 	const int nLength = (int)strSubFolders.GetCount();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
@@ -203,12 +203,12 @@ BOOL CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray & strSu
 		strNetworkPath.AppendFormat(_T("\\%s"), static_cast<LPCWSTR>(strSubFolders.GetAt(nIndex)));
 		if (!SetCurrentDirectory(strNetworkPath))
 		{
-			if (!CreateDirectory(strNetworkPath, NULL))
-				return FALSE;
+			if (!CreateDirectory(strNetworkPath, nullptr))
+				return false;
 		}
 	}
 
-	return TRUE;
+	return true;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -225,14 +225,14 @@ CNetworkTree::~CNetworkTree()
 	VERIFY(DeleteTree());
 }
 
-BOOL CNetworkTree::ImportData()
+bool CNetworkTree::ImportData()
 {
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkTree::ExportData()
+bool CNetworkTree::ExportData()
 {
-	return TRUE;
+	return true;
 }
 
 int CNetworkTree::GenerateID()
@@ -244,32 +244,32 @@ int CNetworkTree::GenerateID()
 	return nKey;
 }
 
-BOOL CNetworkTree::CreateTree()
+bool CNetworkTree::CreateTree()
 {
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
 	{
-		m_ptrLink[i] = NULL;
+		m_ptrLink[i] = nullptr;
 	}
-	SetLeaf(TRUE);
+	SetLeaf(true);
 	SetRoot(this);
 	SetSize(0);
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkTree::DeleteTree()
+bool CNetworkTree::DeleteTree()
 {
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
 	{
-		if (m_ptrLink[i] != NULL)
+		if (m_ptrLink[i] != nullptr)
 		{
 			delete m_ptrLink[i];
-			m_ptrLink[i] = NULL;
+			m_ptrLink[i] = nullptr;
 		}
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkTree::SearchNode(int nKey, CString & strFilePath)
+bool CNetworkTree::SearchNode(int nKey, CString & strFilePath)
 {
 	ASSERT(GetSize() == (UINT)m_listKey.GetCount());
 	ASSERT(GetSize() == (UINT)m_listCode.GetCount());
@@ -281,17 +281,17 @@ BOOL CNetworkTree::SearchNode(int nKey, CString & strFilePath)
 	if ((i < GetSize()) && (nKey == m_listKey.GetAt(i)))
 	{
 		strFilePath = m_listCode.GetAt(i);
-		return TRUE;
+		return true;
 	}
 
 	if (GetLeaf())
-		return FALSE;
+		return false;
 
-	ASSERT(m_ptrLink[i] != NULL);
+	ASSERT(m_ptrLink[i] != nullptr);
 	return m_ptrLink[i]->SearchNode(nKey, strFilePath);
 }
 
-/*BOOL CNetworkTree::UpdateNode(int nKey, CString strFilePath)
+/*bool CNetworkTree::UpdateNode(int nKey, CString strFilePath)
 {
 	ASSERT(GetSize() == (UINT)m_listKey.GetCount());
 	ASSERT(GetSize() == (UINT)m_listCode.GetCount());
@@ -303,17 +303,17 @@ BOOL CNetworkTree::SearchNode(int nKey, CString & strFilePath)
 	if ((i < GetSize()) && (nKey == m_listKey.GetAt(i)))
 	{
 		m_listCode.SetAt(i, strFilePath);
-		return TRUE;
+		return true;
 	}
 
 	if (GetLeaf())
-		return FALSE;
+		return false;
 
-	ASSERT(m_ptrLink[i] != NULL);
+	ASSERT(m_ptrLink[i] != nullptr);
 	return m_ptrLink[i]->SearchNode(nKey, strFilePath);
 }
 
-BOOL CNetworkTree::InsertNode(int nKey, CString strFilePath)
+bool CNetworkTree::InsertNode(int nKey, CString strFilePath)
 {
 	CNetworkTree * r = GetRoot();
 	if (r->GetSize() < BALANCED_TREE_ORDER)
@@ -324,16 +324,16 @@ BOOL CNetworkTree::InsertNode(int nKey, CString strFilePath)
 	{
 		CNetworkTree * s = new CNetworkTree();
 		SetRoot(s);
-		s->SetLeaf(FALSE);
+		s->SetLeaf(false);
 		s->SetSize(0);
 		s->SetLink(0, r);
 		VERIFY(DivideNode(s, 0, r));
 		VERIFY(s->InsertEmpty(nKey, strFilePath));
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkTree::InsertEmpty(int nKey, CString strFilePath)
+bool CNetworkTree::InsertEmpty(int nKey, CString strFilePath)
 {
 	if (GetLeaf())
 	{
@@ -363,7 +363,7 @@ BOOL CNetworkTree::InsertEmpty(int nKey, CString strFilePath)
 	{
 		//int i = GetSize()-1;
 	}
-	return TRUE;
+	return true;
 }*/
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -387,7 +387,7 @@ void CNetworkHash::RemoveAll()
 	m_mapFilePath.RemoveAll();
 }
 
-BOOL CNetworkHash::ImportData()
+bool CNetworkHash::ImportData()
 {
 	int nLevel = 0, nFileCode = 0;
 	CString strFileLine, strFilePath;
@@ -411,12 +411,12 @@ BOOL CNetworkHash::ImportData()
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
 		pFileException->Delete();
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkHash::ExportData()
+bool CNetworkHash::ExportData()
 {
 	int nLevel = 0;
 	CString strFileLine, strFilePath;
@@ -438,9 +438,9 @@ BOOL CNetworkHash::ExportData()
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
 		pFileException->Delete();
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 int CNetworkHash::GenerateID()
@@ -453,29 +453,29 @@ int CNetworkHash::GenerateID()
 	return nKey;
 }
 
-BOOL CNetworkHash::SearchItem(int nKey, int & nLevel, CString & strFilePath)
+bool CNetworkHash::SearchItem(int nKey, int & nLevel, CString & strFilePath)
 {
-	BOOL bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
-	BOOL bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
+	bool bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
+	bool bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
 	return (bFileCode && bFilePath);
 }
 
-BOOL CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
+bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
 {
 	m_mapFileCode.SetAt(nKey, nLevel);
 	m_mapFilePath.SetAt(nKey, strFilePath);
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
+bool CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
 {
 	m_listKey.Add(nKey);
 	m_mapFileCode.SetAt(nKey, nLevel);
 	m_mapFilePath.SetAt(nKey, strFilePath);
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkHash::DeleteItem(int nKey)
+bool CNetworkHash::DeleteItem(int nKey)
 {
 	int nOldLevel = 0, nNewLevel = 0;
 	CString strOldFilePath, strNewFilePath;
@@ -521,7 +521,7 @@ BOOL CNetworkHash::DeleteItem(int nKey)
 			}
 		}
 	}
-	BOOL bFileCode = m_mapFileCode.RemoveKey(nKey);
-	BOOL bFilePath = m_mapFilePath.RemoveKey(nKey);
+	bool bFileCode = m_mapFileCode.RemoveKey(nKey);
+	bool bFilePath = m_mapFilePath.RemoveKey(nKey);
 	return (bFileCode && bFilePath);
 }

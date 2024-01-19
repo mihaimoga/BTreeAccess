@@ -187,7 +187,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="FileDialogST.cpp" />
+    <ClCompile Include="FilteredFolderDlg.cpp" />
+    <ClCompile Include="FolderDlg.cpp" />
     <ClCompile Include="HLinkCtrl.cpp" />
     <ClCompile Include="SiatelFileListDlg.cpp" />
     <ClCompile Include="SiatelHomework.cpp" />
@@ -202,7 +203,8 @@
     <ClCompile Include="VersionInfo.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="FileDialogST.h" />
+    <ClInclude Include="FilteredFolderDlg.h" />
+    <ClInclude Include="FolderDlg.h" />
     <ClInclude Include="HLinkCtrl.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="SiatelFileListDlg.h" />

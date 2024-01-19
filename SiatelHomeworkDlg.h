@@ -60,8 +60,8 @@ protected:
 	CButton m_ctrlDownload;
 	CButton m_ctrlDelete;
 
-	CNetworkTree * m_treeNetwork;
-	CNetworkHash * m_hashNetwork;
+	CNetworkTree* m_treeNetwork;
+	CNetworkHash* m_hashNetwork;
 
 	// Generated message map functions
 	virtual BOOL OnInitDialog();

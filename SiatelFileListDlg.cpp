@@ -30,8 +30,8 @@ IMPLEMENT_DYNAMIC(CSiatelFileListDlg, CDialog)
 CSiatelFileListDlg::CSiatelFileListDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CSiatelFileListDlg::IDD, pParent)
 {
-	m_treeNetwork = NULL;
-	m_hashNetwork = NULL;
+	m_treeNetwork = nullptr;
+	m_hashNetwork = nullptr;
 }
 
 CSiatelFileListDlg::~CSiatelFileListDlg()
@@ -67,7 +67,7 @@ BOOL CSiatelFileListDlg::OnInitDialog()
 
 	if (USE_HASH_METHOD)
 	{
-		ASSERT(m_hashNetwork != NULL);
+		ASSERT(m_hashNetwork != nullptr);
 		const int nLength = (int)m_hashNetwork->GetSize();
 		for (int nIndex = 0; nIndex < nLength; nIndex++)
 		{

@@ -1,0 +1,531 @@
+ <!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Introduction to B-trees: Concepts and Applications</title>
+        <link rel="icon" type="image/png" href="https://www.moga.doctor/romania-flag-square-icon-256.png">
+        <link rel="apple-touch-icon" href="https://www.moga.doctor/romania-flag-square-icon-256.png">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+    </head>
+    <body>
+          <h1>Introduction to B-trees: Concepts and Applications</h1>
+
+         <ul class="download">
+               <li><a href="https://github.com/mihaimoga/BTreeAccess">Download demo project with source code (Github)</a></li>
+          </ul>
+
+          <p><img src="BTreeAccess.png" style="height: 358px; width: 640px" /></p>
+
+          <h2>Introduction</h2>
+
+          <p><strong>Problem</strong>: Create a file server with optimal access to files, with the restriction that each folder can store N files maxim.</p>
+
+          <p><strong>Solution</strong>: B-tree implementation</p>
+
+          <h2>Background</h2>
+
+          <!--p><img src="FileServerClient.gif" style="width: 363px; height: 218px" /></p-->
+
+          <p>A B-tree is a method of placing and locating files (called records or keys) in a database. (The meaning of the letter B has not been explicitly defined.) The B-tree algorithm minimizes the number of times a medium must be accessed to locate a desired record, thereby speeding up the process.</p>
+
+          <p>B-trees are preferred when decision points, called nodes, are on hard disk rather than in random-access memory (RAM). It takes thousands of times longer to access a data element from hard disk as compared with accessing it from RAM, because a disk drive has mechanical parts, which read and write data far more slowly than purely electronic media. B-trees save time by using nodes with many branches (called children), compared with binary trees, in which each node has only two children. When there are many children per node, a record can be found by passing through fewer nodes than if there are two children per node. A simplified example of this principle is shown below.</p>
+
+          <p>In a tree, records are stored in locations called leaves. This name derives from the fact that records always exist at end points; there is nothing beyond them. The maximum number of children per node is the order of the tree. The number of required disk accesses is the depth. The image at the left shows a binary tree for locating a particular record in a set of eight leaves. The image at the right shows a B-tree of order three for locating a particular record in a set of eight leaves (the ninth leaf is unoccupied, and is called a <code>null</code>). The binary tree at the left has a depth of four; the B-tree at the right has a depth of three. Clearly, the B-tree allows a desired record to be located faster, assuming all other system parameters are identical. The tradeoff is that the decision process at each node is more complicated in a B-tree as compared with a binary tree. A sophisticated program is required to execute the operations in a B-tree. But this program is stored in RAM, so it runs fast.</p>
+
+          <p>In a practical B-tree, there can be thousands, millions, or billions of records. Not all leaves necessarily contain a record, but at least half of them do. The difference in depth between binary-tree and B-tree schemes is greater in a practical database than in the example illustrated here, because real-world B-trees are of higher order (32, 64, 128, or more). Depending on the number of records in the database, the depth of a B-tree can and often does change. Adding a large enough number of records will increase the depth; deleting a large enough number of records will decrease the depth. This ensures that the B-tree functions optimally for the number of records it contains.</p>
+
+          <h2>The Theory</h2>
+
+          <p>The algorithms for the <i>search</i>, <i>create</i>, and <i>insert</i> operations are shown below. Note that these algorithms are single pass; in other words, they do not traverse back up the tree. Since B-trees strive to minimize disk accesses and the nodes are usually stored on disk, this single-pass approach will reduce the number of node visits and thus the number of disk accesses. Simpler double-pass approaches that move back up the tree to fix violations are possible.</p>
+
+          <p>Since all nodes are assumed to be stored in secondary storage (disk) rather than primary storage (memory), all references to a given node will be preceeded by a read operation denoted by <i>Disk-Read</i>. Similarly, once a node is modified and it is no longer needed, it must be written out to secondary storage with a write operation denoted by <i>Disk-Write</i>. The algorithms below assume that all nodes referenced in parameters have already had a corresponding <i>Disk-Read</i> operation. New nodes are created and assigned storage with the <i>Allocate-Node</i> call. The implementation details of the <i>Disk-Read</i>, <i>Disk-Write</i>, and <i>Allocate-Node</i> functions are operating system and implementation dependent.</p>
+
+          <h3>B-Tree-Search(x, k)</h3>
+
+          <pre>
+          i &lt;- 1
+          while i &lt;= n[x] and k &gt; key<sub>i</sub>[x]
+               do i &lt;- i + 1
+          if i &lt;= n[x] and k = key<sub>i</sub>[x]
+               then return (x, i)
+          if leaf[x]
+               then return NIL
+               else Disk-Read(c<sub>i</sub>[x])
+                    return B-Tree-Search(c<sub>i</sub>[x], k)</pre>
+
+          <p>The search operation on a B-tree is analogous to a search on a binary tree. Instead of choosing between a left and a right child as in a binary tree, a B-tree search must make an n-way choice. The correct child is chosen by performing a linear search of the values in the node. After finding the value greater than or equal to the desired value, the child pointer to the immediate left of that value is followed. If all values are less than the desired value, the rightmost child pointer is followed. Of course, the search can be terminated as soon as the desired node is found. Since the running time of the search operation depends upon the height of the tree, <i>B-Tree-Search</i> is <i>O(log<sub>t</sub> n)</i>.</p>
+
+          <h3>B-Tree-Create(T)</h3>
+
+          <pre>
+          x &lt;- Allocate-Node()
+          leaf[x] &lt;- TRUE
+          n[x] &lt;- 0
+          Disk-Write(x)
+          root[T] &lt;- x </pre>
+
+          <p>The <i>B-Tree-Create</i> operation creates an empty B-tree by allocating a new root node that has no keys and is a leaf node. Only the root node is permitted to have these properties; all other nodes must meet the criteria outlined previously. The <i>B-Tree-Create</i> operation runs in time <i>O(1)</i>.</p>
+
+          <h3>B-Tree-Split-Child(x, i, y)</h3>
+
+          <pre>
+          z &lt;- Allocate-Node()
+          leaf[z] &lt;- leaf[y]
+          n[z] &lt;- t - 1
+          for j &lt;- 1 to t - 1
+               do key<sub>j</sub>[z] &lt;- key<sub>j+t</sub>[y]
+          if not leaf[y]
+               then for j &lt;- 1 to t
+                    do c<sub>j</sub>[z] &lt;- c<sub>j+t</sub>[y]
+          n[y] &lt;- t - 1
+          for j &lt;- n[x] + 1 downto i + 1
+               do c<sub>j+1</sub>[x] &lt;- c<sub>j</sub>[x]
+          c<sub>i+1</sub> &lt;- z
+          for j &lt;- n[x] downto i
+               do key<sub>j+1</sub>[x] &lt;- key<sub>j</sub>[x]
+          key<sub>i</sub>[x] &lt;- key<sub>t</sub>[y]
+          n[x] &lt;- n[x] + 1
+          Disk-Write(y)
+          Disk-Write(z)
+          Disk-Write(x)</pre>
+
+          <p>If a node becomes &quot;too full,&quot; it is necessary to perform a split operation. The split operation moves the median key of node <i>x</i> into its parent <i>y</i> where <i>x</i> is the <i>i<sup>th</sup></i> child of <i>y</i>. A new node, <i>z</i>, is allocated, and all keys in <i>x</i> right of the median key are moved to <i>z</i>. The keys left of the median key remain in the original node <i>x</i>. The new node, <i>z</i>, becomes the child immediately to the right of the median key that was moved to the parent <i>y</i>, and the original node, <i>x</i>, becomes the child immediately to the left of the median key that was moved into the parent <i>y</i>.</p>
+
+          <p>The split operation transforms a full node with <i>2t - 1</i> keys into two nodes with <i>t - 1</i> keys each. Note that one key is moved into the parent node. The <i>B-Tree-Split-Child</i> algorithm will run in time <i>O(t)</i> where <i>t</i> is constant.</p>
+
+          <h3>B-Tree-Insert(T, k)</h3>
+
+          <pre>
+          r &lt;- root[T]
+          if n[r] = 2t - 1
+               then s &lt;- Allocate-Node()
+                    root[T] &lt;- s
+                 leaf[s] &lt;- FALSE
+                 n[s] &lt;- 0
+                 c<sub>1</sub> &lt;- r
+                 B-Tree-Split-Child(s, 1, r)
+                 B-Tree-Insert-Nonfull(s, k)
+               else B-Tree-Insert-Nonfull(r, k)</pre>
+
+          <h3>B-Tree-Insert-Nonfull(x, k)</h3>
+
+          <pre>
+          i &lt;- n[x]
+          if leaf[x]
+               then while i &gt;= 1 and k &lt; key<sub>i</sub>[x]
+                      do key<sub>i+1</sub>[x] &lt;- key<sub>i</sub>[x]
+                      i &lt;- i - 1
+                    key<sub>i+1</sub>[x] &lt;- k
+                 n[x] &lt;- n[x] + 1
+                 Disk-Write(x)
+               else while i &gt;= and k &lt; key<sub>i</sub>[x]
+                      do i &lt;- i - 1
+                 i &lt;- i + 1
+                 Disk-Read(c<sub>i</sub>[x])
+                 if n[c<sub>i</sub>[x]] = 2t - 1
+                      then B-Tree-Split-Child(x, i, c<sub>i</sub>[x])
+                           if k &gt; key<sub>i</sub>[x]
+                             then i &lt;- i + 1
+                    B-Tree-Insert-Nonfull(c<sub>i</sub>[x], k)</pre>
+
+          <p>To perform an insertion on a B-tree, the appropriate node for the key must be located using an algorithm similar to <i>B-Tree-Search</i>. Next, the key must be inserted into the node. If the node is not full prior to the insertion, no special action is required; however, if the node is full, the node must be split to make room for the new key. Since splitting the node results in moving one key to the parent node, the parent node must not be full or another split operation is required. This process may repeat all the way up to the root and may require splitting the root node. This approach requires two passes. The first pass locates the node where the key should be inserted; the second pass performs any required splits on the ancestor nodes.</p>
+
+          <p>Since each access to a node may correspond to a costly disk access, it is desirable to avoid the second pass by ensuring that the parent node is never full. To accomplish this, the presented algorithm splits any full nodes encountered while descending the tree. Although this approach may result in unnecessary split operations, it guarantees that the parent never needs to be split and eliminates the need for a second pass up the tree. Since a split runs in linear time, it has little effect on the <i>O(t log<sub>t</sub> n)</i> running time of <i>B-Tree-Insert</i>.</p>
+
+          <p>Splitting the root node is handled as a special case since a new root must be created to contain the median key of the old root. Observe that a B-tree will grow from the top.</p>
+
+          <h3>B-Tree-Delete</h3>
+
+          <p>Deletion of a key from a B-tree is possible; however, special care must be taken to ensure that the properties of a B-tree are maintained. Several cases must be considered. If the deletion reduces the number of keys in a node below the minimum degree of the tree, this violation must be corrected by combining several nodes and possibly reducing the height of the tree. If the key has children, the children must be rearranged. For a detailed discussion of deleting from a B-tree, refer to Section 19.3, pages 395-397, of Cormen, Leiserson, and Rivest or to another reference listed below.</p>
+
+          <h2>The Practice</h2>
+
+          <p>The main implementation is done in <code>CNetworkHash</code> class (<em>SiatelHomeworkExt.h</em> and <em>SiatelHomeworkExt.cpp</em> files) using hashmaps, as follows:</p>
+
+          <ul class="method">
+               <li><code>void RemoveAll()</code> - removes all items from database</li>
+               <li><code>BOOL ImportData()</code> - loads database from a text configuration file</li>
+               <li><code>BOOL ExportData()</code> - saves database to a text configuration file</li>
+               <li><code>int GenerateID()</code> - generates a new key for insertion</li>
+               <li><code>BOOL SearchItem(int nKey, int &amp; nLevel, CString &amp; strFilePath)</code> - allows searching for a file into database, based on given key</li>
+               <li><code>BOOL UpdateItem(int nKey, int nLevel, CString strFilePath)</code> - allows updating a file into database, based on given key</li>
+               <li><code>BOOL InsertItem(int nKey, int nLevel, CString strFilePath)</code> - allows inserting a file into database, based on given key</li>
+               <li><code>BOOL DeleteItem(int nKey)</code> - allows deleting a file from database, based on given key</li>
+          </ul>
+
+          <pre lang="C++">
+          CNetworkHash::CNetworkHash()
+          {
+               m_mapFileCode.InitHashTable(MAX_RANDOM_DATA);
+               m_mapFilePath.InitHashTable(MAX_RANDOM_DATA);
+          }
+
+          CNetworkHash::~CNetworkHash()
+          {
+          }
+
+          void CNetworkHash::RemoveAll()
+          {
+               m_listKey.RemoveAll();
+               m_mapFileCode.RemoveAll();
+               m_mapFilePath.RemoveAll();
+          }
+
+          BOOL CNetworkHash::ImportData()
+          {
+               int nLevel = 0, nFileCode = 0;
+               CString strFileLine, strFilePath;
+               const UINT nTextFileFlags = CFile::modeRead | CFile::typeText;
+               try {
+                    CStdioFile pTextFile(GetFileList(), nTextFileFlags);
+                    while (pTextFile.ReadString(strFileLine))
+                    {
+                         int nFirstNoLength = strFileLine.Find(_T(&#39; &#39;), 0);
+                         int nSecondNoLength = strFileLine.Find(_T(&#39; &#39;), nFirstNoLength + 1);
+                         ASSERT((nFirstNoLength &gt;= 0) &amp;&amp; (nSecondNoLength &gt;= 0));
+                         nFileCode = _tstoi(strFileLine.Mid(0, nFirstNoLength));
+                         nLevel = _tstoi(strFileLine.Mid(nFirstNoLength + 1, nSecondNoLength));
+                         strFilePath = strFileLine.Mid(nSecondNoLength + 1);
+                         VERIFY(InsertItem(nFileCode, nLevel, strFilePath));
+                         TRACE(_T(&quot;Importing data %d %d %s ...\n&quot;), nFileCode, nLevel, strFilePath);
+                    }
+                    pTextFile.Close();
+               } catch (CFileException *pFileException) {
+                    TCHAR lpszFileException[0x1000];
+                    VERIFY(pFileException-&gt;GetErrorMessage(lpszFileException, 0x1000));
+                    TRACE(_T(&quot;%s\n&quot;), lpszFileException);
+                    pFileException-&gt;Delete();
+                    return FALSE;
+               }
+               return TRUE;
+          }
+
+          BOOL CNetworkHash::ExportData()
+          {
+               int nLevel = 0;
+               CString strFileLine, strFilePath;
+               const UINT nTextFileFlags = CFile::modeCreate | CFile::modeWrite | CFile::typeText;
+               try {
+                    CStdioFile pTextFile(GetFileList(), nTextFileFlags);
+                    const int nLength = GetSize();
+                    for (int nIndex = 0; nIndex &lt; nLength; nIndex++)
+                    {
+                         int nFileCode = GetKey(nIndex);
+                         VERIFY(SearchItem(nFileCode, nLevel, strFilePath));
+                         strFileLine.Format(_T(&quot;%d %d %s\n&quot;), nFileCode, nLevel, strFilePath);
+                         pTextFile.WriteString(strFileLine);
+                         TRACE(_T(&quot;Exporting data %d %d %s ...\n&quot;), nFileCode, nLevel, strFilePath);
+                    }
+                    pTextFile.Close();
+               } catch (CFileException *pFileException) {
+                    TCHAR lpszFileException[0x1000];
+                    VERIFY(pFileException-&gt;GetErrorMessage(lpszFileException, 0x1000));
+                    TRACE(_T(&quot;%s\n&quot;), lpszFileException);
+                    pFileException-&gt;Delete();
+                    return FALSE;
+               }
+               return TRUE;
+          }
+
+          int CNetworkHash::GenerateID()
+          {
+               int nLevel = 0;
+               CString strFilePath;
+               int nKey = GetNextID();
+               while (SearchItem(nKey, nLevel, strFilePath))
+                    nKey = GetNextID();
+               return nKey;
+          }
+
+          BOOL CNetworkHash::SearchItem(int nKey, int &amp; nLevel, CString &amp; strFilePath)
+          {
+               BOOL bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
+               BOOL bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
+               return (bFileCode &amp;&amp; bFilePath);
+          }
+
+          BOOL CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
+          {
+               m_mapFileCode.SetAt(nKey, nLevel);
+               m_mapFilePath.SetAt(nKey, strFilePath);
+               return TRUE;
+          }
+
+          BOOL CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
+          {
+               m_listKey.Add(nKey);
+               m_mapFileCode.SetAt(nKey, nLevel);
+               m_mapFilePath.SetAt(nKey, strFilePath);
+               return TRUE;
+          }
+
+          BOOL CNetworkHash::DeleteItem(int nKey)
+          {
+               int nOldLevel = 0, nNewLevel = 0;
+               CString strOldFilePath, strNewFilePath;
+               const int nLength = GetSize();
+               if (nLength &gt; 0)
+               {
+                    if (SearchItem(nKey, nNewLevel, strNewFilePath))
+                    {
+                         for (int nIndex = 0; nIndex &lt; nLength; nIndex++)
+                         {
+                              if (nKey == m_listKey.GetAt(nIndex))
+                              {
+                                   m_listKey.RemoveAt(nIndex);
+                                   break;
+                              }
+                         }
+
+                         for (int nIndex = 0; nIndex &lt; GetSize(); nIndex++)
+                         {
+                              const int nCurrentKey = m_listKey.GetAt(nIndex);
+                              if (SearchItem(nCurrentKey, nOldLevel, strOldFilePath))
+                              {
+                                   if (nOldLevel == GetSize())
+                                   {
+                                        CString strFileName = strNewFilePath;
+                                        // strNewFilePath = the file just deleted
+                                        // strOldFilePath = the file in the old location
+                                        strOldFilePath.Insert(0, GetRootFolder());
+                                        strFileName.Insert(0, GetRootFolder());
+                                        if (!MoveFile(strOldFilePath, strFileName))
+                                        {
+                                             const DWORD dwLastError = GetLastError();
+                                             CString strError = FormatLastError(dwLastError);
+                                             AfxMessageBox(strError, MB_OK | MB_ICONSTOP);
+                                        }
+                                        else
+                                        {
+                                             VERIFY(UpdateItem(nCurrentKey, nNewLevel, strNewFilePath));
+                                        }
+                                        break;
+                                   }
+                              }
+                         }
+                    }
+               }
+               BOOL bFileCode = m_mapFileCode.RemoveKey(nKey);
+               BOOL bFilePath = m_mapFilePath.RemoveKey(nKey);
+               return (bFileCode &amp;&amp; bFilePath);
+          }</pre>
+
+          <h2>Points of Interest</h2>
+
+          <p>Given the above code, the upload, download and delete operations are implemented as follows:</p>
+
+          <pre lang="C++">
+          void CSiatelHomeworkDlg::OnBnClickedUpload()
+          {
+               BOOL bCancelOperation = FALSE;
+               CString strMessage, strFilename;
+               CStringArray arrNetworkPath;
+               m_ctrlFolder.GetWindowText(m_strRootFolder);
+               if (m_strRootFolder.IsEmpty())
+               {
+                    MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+               }
+               else
+               {
+                    if (USE_HASH_METHOD)
+                    {
+                         ASSERT(m_hashNetwork != NULL);
+                         int nFileCode = m_hashNetwork-&gt;GenerateID();
+                         int nPathCode = m_hashNetwork-&gt;GetSize();
+                         CString strFileCode = m_hashNetwork-&gt;EncodeNetworkID(nFileCode);
+                         CString strFilePath = m_hashNetwork-&gt;GetFilePath(nPathCode, arrNetworkPath);
+                         VERIFY(m_hashNetwork-&gt;CreateNetworkPath(m_strRootFolder, arrNetworkPath));
+                         strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
+                         m_ctrlProgress.SetRange32(0, PROGRESS_RANGE);
+                         m_ctrlProgress.SetPos(0);
+                         m_ctrlProgress.ShowWindow(SW_SHOW);
+                         if (!CopyFileEx(m_strInputFile, strFilename, 
+                           m_funcProgress, &amp;m_ctrlProgress, &amp;bCancelOperation, 0 ))
+                         {
+                              m_ctrlProgress.ShowWindow(SW_HIDE);
+                              const DWORD dwLastError = GetLastError();
+                              m_ctrlMessage.SetWindowText
+                          (m_hashNetwork-&gt;FormatLastError(dwLastError));
+                         }
+                         else
+                         {
+                              VERIFY(m_hashNetwork-&gt;InsertItem(nFileCode, nPathCode, strFilePath));
+                              strMessage.Format(_T(&quot;Done writing file %s [%s] ...&quot;), 
+                                            strFilename, strFileCode);
+                              m_ctrlMessage.SetWindowText(strMessage);
+                              m_ctrlOutputCode.SetWindowText(strFileCode);
+                              m_ctrlProgress.SetPos(PROGRESS_RANGE-1);
+                              m_ctrlProgress.UpdateWindow();
+                              Sleep(SLEEP_INTERVAL);
+                              m_ctrlProgress.ShowWindow(SW_HIDE);
+                         }
+                    }
+                    else // USE B-TREE
+                    {
+                    }
+               }
+          }
+
+          void CSiatelHomeworkDlg::OnBnClickedDownload()
+          {
+               int nLevel = 0;
+               BOOL bCancelOperation = FALSE;
+               CString strMessage, strFilename;
+               CStringArray arrNetworkPath;
+               m_ctrlFolder.GetWindowText(m_strRootFolder);
+               if (m_strRootFolder.IsEmpty())
+               {
+                    MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+               }
+               else
+               {
+                    if (USE_HASH_METHOD)
+                    {
+                         ASSERT(m_hashNetwork != NULL);
+                         if (!m_hashNetwork-&gt;IsValidCode(m_strInputCode))
+                         {
+                              m_ctrlMessage.SetWindowText(INVALID_CHARS);
+                         }
+                         else
+                         {
+                              CString strFilePath; // relative path to file 
+                              int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strInputCode);
+                              if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath))
+                              {
+                                   m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+                              }
+                              else
+                              {
+                                   strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
+                                   m_ctrlProgress.SetRange32(0, PROGRESS_RANGE);
+                                   m_ctrlProgress.SetPos(0);
+                                   m_ctrlProgress.ShowWindow(SW_SHOW);
+                                   if (!CopyFileEx(strFilename, m_strOutputFile, 
+                                  m_funcProgress, &amp;m_ctrlProgress, &amp;bCancelOperation, 0 ))
+                                   {
+                                        m_ctrlProgress.ShowWindow(SW_HIDE);
+                                        const DWORD dwLastError = GetLastError();
+                                        if (!m_hashNetwork-&gt;FileExists(strFilename))
+                                             m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+                                        else
+                                             m_ctrlMessage.SetWindowText
+                                      (m_hashNetwork-&gt;FormatLastError(dwLastError));
+                                   }
+                                   else
+                                   {
+                                        strMessage.Format(_T(&quot;Done reading file %s [%s] ...&quot;), 
+                                                    strFilename, m_strInputCode);
+                                        m_ctrlMessage.SetWindowText(strMessage);
+                                        m_ctrlProgress.SetPos(PROGRESS_RANGE-1);
+                                        m_ctrlProgress.UpdateWindow();
+                                        Sleep(SLEEP_INTERVAL);
+                                        m_ctrlProgress.ShowWindow(SW_HIDE);
+                                   }
+                              }
+                         }
+                    }
+                    else // USE B-TREE
+                    {
+                    }
+               }
+          }
+
+          void CSiatelHomeworkDlg::OnBnClickedDelete()
+          {
+               int nLevel = 0;
+               CString strMessage, strFilename;
+               CStringArray arrNetworkPath;
+               m_ctrlFolder.GetWindowText(m_strRootFolder);
+               if (m_strRootFolder.IsEmpty())
+               {
+                    MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+               }
+               else
+               {
+                    if (USE_HASH_METHOD)
+                    {
+                         ASSERT(m_hashNetwork != NULL);
+                         if (!m_hashNetwork-&gt;IsValidCode(m_strDeleteCode))
+                         {
+                              m_ctrlMessage.SetWindowText(INVALID_CHARS);
+                         }
+                         else
+                         {
+                              CString strFilePath;
+                              int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strDeleteCode);
+                              if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath))
+                              {
+                                   m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+                              }
+                              else
+                              {
+                                   strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
+                                   if (!m_hashNetwork-&gt;FileExists(strFilename))
+                                   {
+                                        m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+                                   }
+                                   else
+                                   {
+                                        if (!DeleteFile(strFilename))
+                                        {
+                                             const DWORD dwLastError = GetLastError();
+                                             m_ctrlMessage.SetWindowText
+                                      (m_hashNetwork-&gt;FormatLastError(dwLastError));
+                                        }
+                                        else
+                                        {
+                                             VERIFY(m_hashNetwork-&gt;DeleteItem(nFileCode));
+                                             strMessage.Format(_T(&quot;File %s 
+                                      [%s] has been deleted ...&quot;), strFilename, m_strDeleteCode);
+                                             m_ctrlMessage.SetWindowText(strMessage);
+                                        }
+                                   }
+                              }
+                         }
+                    }
+                    else // USE B-TREE
+                    {
+                    }
+               }
+          }</pre>
+
+          <h2><a name="cited"></a>Works Cited</h2>
+
+          <ul>
+               <li>Bayer, R., M. Schkolnick. Concurrency of Operations on B-Trees. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 216-226, 1994.</li>
+               <li>Cormen, Thomas H., Charles E. Leiserson, Ronald L. Rivest, <i>Introduction to Algorithms</i>, MIT Press, Massachusetts: 1998.</li>
+               <li>Gray, J. N., R. A. Lorie, G. R. Putzolu, I. L. Traiger. Granularity of Locks and Degrees of Consistency in a Shared Data Base. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 181-208, 1994.</li>
+               <li>Kung, H. T., John T. Robinson. On Optimistic Methods of Concurrency Control. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 209-215, 1994.</li>
+          </ul>
+
+          <h2>History</h2>
+
+          <ul>
+               <li>14<sup>th </sup>August, 2014 - Version 1.03 - Initial release</li>
+               <li>1<sup>st</sup> April, 2023 - Same version - Moved source code to GitHub</li>
+               <li>Version 1.04 (June 25<sup>th</sup>, 2023):
+               <ul>
+                    <li>Updated <strong>About</strong> dialog with GPLv3 notice;</li>
+                    <li>Replaced old <code>CHyperlinkStatic</code> class with PJ Naughter&#39;s <code>CHLinkCtrl</code> library.</li>
+               </ul>
+               </li>
+               <li>Version 1.05 (October 20<sup>th</sup>, 2023):
+               <ul>
+                    <li>Updated the <strong>About</strong> dialog (email &amp; website).</li>
+                    <li>Added social media links: Twitter, LinkedIn, Facebook, and Instagram.</li>
+                    <li>Added shortcuts to GitHub repository&#39;s Issues, Discussions, and Wiki.</li>
+               </ul>
+               </li>
+               <li>Version 1.06 (January 20<sup>th</sup>, 2024):
+               <ul>
+                    <li>Added <em>ReleaseNotes.html</em> and <em>SoftwareContextRegister.html</em> to GitHub repo;</li>
+                    <li>Replaced old <code>CFileDialogST</code> class with Armen Hakobyan&#39;s <code>CFolderDialog</code> library;</li>
+                    <li>Replaced <code>NULL</code> throughout the codebase with <code>nullptr</code>.<br />
+                    Replaced <code>BOOL</code> throughout the codebase with <code>bool</code>.<br />
+                    This means that the minimum requirement for the application is now Microsoft Visual C++ 2010.</li>
+               </ul>
+               </li>
+          </ul>
+    </body>
+</html>
