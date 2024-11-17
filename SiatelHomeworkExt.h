@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2024 Stefan-Mihai MOGA
+/* Copyright (C) 2014-2025 Stefan-Mihai MOGA
 This file is part of BTreeAccess application developed by Stefan-Mihai MOGA.
 
 BTreeAccess is free software: you can redistribute it and/or modify it
