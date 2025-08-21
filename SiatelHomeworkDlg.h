@@ -92,7 +92,7 @@ protected:
 		HANDLE hDestinationFile,
 		LPVOID lpData);
 
-	LPPROGRESS_ROUTINE m_funcProgress;
+	LPPROGRESS_ROUTINE m_funcProgress = nullptr;
 
 	DECLARE_MESSAGE_MAP()
 };
