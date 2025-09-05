@@ -14,6 +14,19 @@ BTreeAccess. If not, see <http://www.opensource.org/licenses/gpl-3.0.html>*/
 
 // SiatelHomeworkExt.cpp : implementation file
 //
+// This file implements the core classes for network-based file management
+// in the BTreeAccess application. It provides base functionality for file
+// existence checks, encoding/decoding network IDs, and path formatting,
+// as well as two derived classes for tree-based and hash-based network
+// structures.
+//
+// Classes implemented:
+//   - CNetworkBase:   Base class with utility methods for file and ID handling.
+//   - CNetworkTree:   Implements a B-Tree-like structure for managing network nodes.
+//   - CNetworkHash:   Implements a hash table for fast access to network items.
+//
+// Copyright (C) 2014-2025 Stefan-Mihai MOGA
+///////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
 #include <direct.h>
@@ -29,10 +42,16 @@ IMPLEMENT_DYNAMIC(CNetworkTree, CNetworkBase)
 IMPLEMENT_DYNAMIC(CNetworkHash, CNetworkBase)
 
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// CNetworkBase ////////////////////////////////
+// CNetworkBase
 ///////////////////////////////////////////////////////////////////////////////
 
-CNetworkBase::CNetworkBase()
+/**
+ * CNetworkBase
+ * ------------
+ * Base class providing utility functions for file operations, network ID
+ * encoding/decoding, and path formatting.
+ */
+	CNetworkBase::CNetworkBase()
 {
 }
 
@@ -40,22 +59,30 @@ CNetworkBase::~CNetworkBase()
 {
 }
 
+/**
+ * FormatLastError
+ * ---------------
+ * Converts a Windows error code to a human-readable string.
+ *
+ * @param dwLastError The error code.
+ * @return CString    The formatted error message.
+ */
 CString CNetworkBase::FormatLastError(DWORD dwLastError)
 {
 	LPVOID lpMsgBuf = nullptr;
 	CString	strLastError;
 
-	FormatMessage( 
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-		FORMAT_MESSAGE_FROM_SYSTEM | 
+	FormatMessage(
+		FORMAT_MESSAGE_ALLOCATE_BUFFER |
+		FORMAT_MESSAGE_FROM_SYSTEM |
 		FORMAT_MESSAGE_IGNORE_INSERTS,
 		nullptr,
 		dwLastError,
 		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR) &lpMsgBuf,
+		(LPTSTR)&lpMsgBuf,
 		0,
 		nullptr);
-	strLastError = (LPCTSTR)lpMsgBuf; 
+	strLastError = (LPCTSTR)lpMsgBuf;
 	//Trim CR/LF from the error message.
 	strLastError.TrimRight();
 
@@ -67,13 +94,22 @@ CString CNetworkBase::FormatLastError(DWORD dwLastError)
 	return strLastError;
 }
 
+/**
+ * FileExists
+ * ----------
+ * Checks if a file exists at the given path.
+ *
+ * @param strFilename The file path.
+ * @return bool       True if the file exists, false otherwise.
+ */
 bool CNetworkBase::FileExists(CString strFilename)
 {
 	const UINT nBinaryFileFlags = CFile::modeRead | CFile::typeBinary;
 	try {
 		CFile pBinaryFile(strFilename, nBinaryFileFlags);
 		pBinaryFile.Close();
-	} catch (CFileException *pFileException) {
+	}
+	catch (CFileException* pFileException) {
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
@@ -83,6 +119,14 @@ bool CNetworkBase::FileExists(CString strFilename)
 	return true;
 }
 
+/**
+ * IsValidCode
+ * -----------
+ * Validates if the given string contains only allowed network digits.
+ *
+ * @param strFileCode The code string to validate.
+ * @return bool       True if valid, false otherwise.
+ */
 bool CNetworkBase::IsValidCode(CString strFileCode)
 {
 	const int nLength = strFileCode.GetLength();
@@ -95,6 +139,14 @@ bool CNetworkBase::IsValidCode(CString strFileCode)
 	return true;
 }
 
+/**
+ * EncodeNetworkID
+ * ---------------
+ * Encodes an integer key into a string using the network digit set.
+ *
+ * @param nKey    The integer key.
+ * @return CString The encoded string.
+ */
 CString CNetworkBase::EncodeNetworkID(int nKey)
 {
 	CString strKey;
@@ -116,6 +168,14 @@ CString CNetworkBase::EncodeNetworkID(int nKey)
 	return strKey;
 }
 
+/**
+ * DecodeNetworkID
+ * ---------------
+ * Decodes a string network ID back to its integer representation.
+ *
+ * @param strKey  The encoded string.
+ * @return int    The decoded integer key.
+ */
 int CNetworkBase::DecodeNetworkID(CString strKey)
 {
 	int nKey = 0;
@@ -133,11 +193,26 @@ int CNetworkBase::DecodeNetworkID(CString strKey)
 	return nKey;
 }
 
+/**
+ * GetNextID
+ * ---------
+ * Generates a pseudo-random ID for new network entries.
+ *
+ * @return int    The generated ID.
+ */
 int CNetworkBase::GetNextID()
 {
 	return 1 + (int)((double)rand() / (1.0 + RAND_MAX) * MAX_RANDOM_DATA);
 }
 
+/**
+ * FormatFolder
+ * ------------
+ * Formats a folder name based on the network key.
+ *
+ * @param nKey    The network key.
+ * @return CString The folder name.
+ */
 CString CNetworkBase::FormatFolder(int nKey)
 {
 	CString strFolder;
@@ -145,6 +220,14 @@ CString CNetworkBase::FormatFolder(int nKey)
 	return strFolder;
 }
 
+/**
+ * FormatFilename
+ * --------------
+ * Formats a filename (with .dat extension) based on the network key.
+ *
+ * @param nKey    The network key.
+ * @return CString The filename.
+ */
 CString CNetworkBase::FormatFilename(int nKey)
 {
 	CString strFilename;
@@ -152,7 +235,16 @@ CString CNetworkBase::FormatFilename(int nKey)
 	return strFilename;
 }
 
-CString CNetworkBase::GetFilePath(int nKey, CStringArray & arrFilePath)
+/**
+ * GetFilePath
+ * -----------
+ * Constructs the full file path for a given key, updating the folder array.
+ *
+ * @param nKey         The network key.
+ * @param arrFilePath  Array to receive the folder path components.
+ * @return CString     The full file path.
+ */
+CString CNetworkBase::GetFilePath(int nKey, CStringArray& arrFilePath)
 {
 	bool bFirstTime = true;
 	CString strFilePath;
@@ -192,7 +284,16 @@ CString CNetworkBase::GetFilePath(int nKey, CStringArray & arrFilePath)
 	return strFilePath;
 }
 
-bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray & strSubFolders)
+/**
+ * CreateNetworkPath
+ * -----------------
+ * Ensures the directory structure exists for the given root and subfolders.
+ *
+ * @param strRootFolder The root directory.
+ * @param strSubFolders Array of subfolder names.
+ * @return bool         True if the path exists or was created, false otherwise.
+ */
+bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray& strSubFolders)
 {
 	CString strNetworkPath = strRootFolder;
 	if (!SetCurrentDirectory(strNetworkPath))
@@ -213,9 +314,15 @@ bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray & strSu
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// CNetworkTree ////////////////////////////////
+// CNetworkTree
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+ * CNetworkTree
+ * ------------
+ * Implements a B-Tree-like structure for managing network nodes.
+ * Inherits from CNetworkBase.
+ */
 CNetworkTree::CNetworkTree()
 {
 	VERIFY(CreateTree());
@@ -226,16 +333,37 @@ CNetworkTree::~CNetworkTree()
 	VERIFY(DeleteTree());
 }
 
+/**
+ * ImportData
+ * ----------
+ * Placeholder for importing data into the tree.
+ *
+ * @return bool Always true (not implemented).
+ */
 bool CNetworkTree::ImportData()
 {
 	return true;
 }
 
+/**
+ * ExportData
+ * ----------
+ * Placeholder for exporting data from the tree.
+ *
+ * @return bool Always true (not implemented).
+ */
 bool CNetworkTree::ExportData()
 {
 	return true;
 }
 
+/**
+ * GenerateID
+ * ----------
+ * Generates a unique ID not present in the tree.
+ *
+ * @return int The generated unique ID.
+ */
 int CNetworkTree::GenerateID()
 {
 	CString strFilePath;
@@ -245,6 +373,13 @@ int CNetworkTree::GenerateID()
 	return nKey;
 }
 
+/**
+ * CreateTree
+ * ----------
+ * Initializes the tree structure.
+ *
+ * @return bool True if successful.
+ */
 bool CNetworkTree::CreateTree()
 {
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
@@ -257,6 +392,13 @@ bool CNetworkTree::CreateTree()
 	return true;
 }
 
+/**
+ * DeleteTree
+ * ----------
+ * Recursively deletes all nodes in the tree.
+ *
+ * @return bool True if successful.
+ */
 bool CNetworkTree::DeleteTree()
 {
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
@@ -270,7 +412,16 @@ bool CNetworkTree::DeleteTree()
 	return true;
 }
 
-bool CNetworkTree::SearchNode(int nKey, CString & strFilePath)
+/**
+ * SearchNode
+ * ----------
+ * Searches for a node by key and retrieves its file path.
+ *
+ * @param nKey        The key to search for.
+ * @param strFilePath Output parameter for the file path.
+ * @return bool       True if found, false otherwise.
+ */
+bool CNetworkTree::SearchNode(int nKey, CString& strFilePath)
 {
 	ASSERT(GetSize() == (UINT)m_listKey.GetCount());
 	ASSERT(GetSize() == (UINT)m_listCode.GetCount());
@@ -292,85 +443,16 @@ bool CNetworkTree::SearchNode(int nKey, CString & strFilePath)
 	return m_ptrLink[i]->SearchNode(nKey, strFilePath);
 }
 
-/*bool CNetworkTree::UpdateNode(int nKey, CString strFilePath)
-{
-	ASSERT(GetSize() == (UINT)m_listKey.GetCount());
-	ASSERT(GetSize() == (UINT)m_listCode.GetCount());
-
-	UINT i = 0;
-	while ((i < GetSize()) && (nKey > m_listKey.GetAt(i)))
-		i++;
-
-	if ((i < GetSize()) && (nKey == m_listKey.GetAt(i)))
-	{
-		m_listCode.SetAt(i, strFilePath);
-		return true;
-	}
-
-	if (GetLeaf())
-		return false;
-
-	ASSERT(m_ptrLink[i] != nullptr);
-	return m_ptrLink[i]->SearchNode(nKey, strFilePath);
-}
-
-bool CNetworkTree::InsertNode(int nKey, CString strFilePath)
-{
-	CNetworkTree * r = GetRoot();
-	if (r->GetSize() < BALANCED_TREE_ORDER)
-	{
-		VERIFY(r->InsertEmpty(nKey, strFilePath));
-	}
-	else
-	{
-		CNetworkTree * s = new CNetworkTree();
-		SetRoot(s);
-		s->SetLeaf(false);
-		s->SetSize(0);
-		s->SetLink(0, r);
-		VERIFY(DivideNode(s, 0, r));
-		VERIFY(s->InsertEmpty(nKey, strFilePath));
-	}
-	return true;
-}
-
-bool CNetworkTree::InsertEmpty(int nKey, CString strFilePath)
-{
-	if (GetLeaf())
-	{
-		m_listKey.SetSize(GetSize()+1);
-		m_listCode.SetSize(GetSize()+1);
-		if (GetSize() == 0)
-		{
-			m_listKey.SetAt(0, nKey);
-			m_listCode.SetAt(0, strFilePath);
-			SetSize(1);
-		}
-		else
-		{
-			int i = GetSize()-1;
-			while ((i >= 0) && (nKey < m_listKey.GetAt(i)))
-			{
-				m_listKey.SetAt(i+1, m_listKey.GetAt(i));
-				m_listCode.SetAt(i+1, m_listCode.GetAt(i));
-				i--;
-			}
-			m_listKey.SetAt(i+1, nKey);
-			m_listCode.SetAt(i+1, strFilePath);
-			SetSize(GetSize()+1);
-		}
-	}
-	else
-	{
-		//int i = GetSize()-1;
-	}
-	return true;
-}*/
-
 ///////////////////////////////////////////////////////////////////////////////
-///////////////////////////////// CNetworkHash ////////////////////////////////
+// CNetworkHash
 ///////////////////////////////////////////////////////////////////////////////
 
+/**
+ * CNetworkHash
+ * ------------
+ * Implements a hash table for fast access to network items.
+ * Inherits from CNetworkBase.
+ */
 CNetworkHash::CNetworkHash()
 {
 	m_mapFileCode.InitHashTable(MAX_RANDOM_DATA);
@@ -381,6 +463,11 @@ CNetworkHash::~CNetworkHash()
 {
 }
 
+/**
+ * RemoveAll
+ * ---------
+ * Clears all keys and hash tables.
+ */
 void CNetworkHash::RemoveAll()
 {
 	m_listKey.RemoveAll();
@@ -388,6 +475,13 @@ void CNetworkHash::RemoveAll()
 	m_mapFilePath.RemoveAll();
 }
 
+/**
+ * ImportData
+ * ----------
+ * Imports data from a file list into the hash table.
+ *
+ * @return bool True if successful, false otherwise.
+ */
 bool CNetworkHash::ImportData()
 {
 	int nLevel = 0, nFileCode = 0;
@@ -407,7 +501,8 @@ bool CNetworkHash::ImportData()
 			TRACE(_T("Importing data %d %d %s ...\n"), nFileCode, nLevel, static_cast<LPCWSTR>(strFilePath));
 		}
 		pTextFile.Close();
-	} catch (CFileException *pFileException) {
+	}
+	catch (CFileException* pFileException) {
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
@@ -417,6 +512,13 @@ bool CNetworkHash::ImportData()
 	return true;
 }
 
+/**
+ * ExportData
+ * ----------
+ * Exports hash table data to a file list.
+ *
+ * @return bool True if successful, false otherwise.
+ */
 bool CNetworkHash::ExportData()
 {
 	int nLevel = 0;
@@ -434,7 +536,8 @@ bool CNetworkHash::ExportData()
 			TRACE(_T("Exporting data %d %d %s ...\n"), nFileCode, nLevel, static_cast<LPCWSTR>(strFilePath));
 		}
 		pTextFile.Close();
-	} catch (CFileException *pFileException) {
+	}
+	catch (CFileException* pFileException) {
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
@@ -444,6 +547,13 @@ bool CNetworkHash::ExportData()
 	return true;
 }
 
+/**
+ * GenerateID
+ * ----------
+ * Generates a unique ID not present in the hash table.
+ *
+ * @return int The generated unique ID.
+ */
 int CNetworkHash::GenerateID()
 {
 	int nLevel = 0;
@@ -454,13 +564,33 @@ int CNetworkHash::GenerateID()
 	return nKey;
 }
 
-bool CNetworkHash::SearchItem(int nKey, int & nLevel, CString & strFilePath)
+/**
+ * SearchItem
+ * ----------
+ * Searches for an item by key and retrieves its level and file path.
+ *
+ * @param nKey        The key to search for.
+ * @param nLevel      Output parameter for the item's level.
+ * @param strFilePath Output parameter for the file path.
+ * @return bool       True if found, false otherwise.
+ */
+bool CNetworkHash::SearchItem(int nKey, int& nLevel, CString& strFilePath)
 {
 	bool bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
 	bool bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
 	return (bFileCode && bFilePath);
 }
 
+/**
+ * UpdateItem
+ * ----------
+ * Updates the level and file path for a given key.
+ *
+ * @param nKey        The key to update.
+ * @param nLevel      The new level.
+ * @param strFilePath The new file path.
+ * @return bool       True if successful.
+ */
 bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
 {
 	m_mapFileCode.SetAt(nKey, nLevel);
@@ -468,6 +598,16 @@ bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
 	return true;
 }
 
+/**
+ * InsertItem
+ * ----------
+ * Inserts a new item into the hash table.
+ *
+ * @param nKey        The key to insert.
+ * @param nLevel      The item's level.
+ * @param strFilePath The file path.
+ * @return bool       True if successful.
+ */
 bool CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
 {
 	m_listKey.Add(nKey);
@@ -476,6 +616,14 @@ bool CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
 	return true;
 }
 
+/**
+ * DeleteItem
+ * ----------
+ * Deletes an item from the hash table and updates file paths as needed.
+ *
+ * @param nKey The key to delete.
+ * @return bool True if successful.
+ */
 bool CNetworkHash::DeleteItem(int nKey)
 {
 	int nOldLevel = 0, nNewLevel = 0;
