@@ -86,6 +86,9 @@
       <Filter>Resource Files</Filter>
     </None>
     <None Include="ReadMe.txt" />
+    <None Include="ReleaseNotes.html" />
+    <None Include="SoftwareContentRegister.html" />
+    <None Include="README.md" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SiatelHomework.rc">

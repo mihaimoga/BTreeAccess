@@ -238,9 +238,12 @@
     <ClInclude Include="VersionInfo.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="README.md" />
+    <None Include="ReleaseNotes.html" />
     <None Include="res\SiatelHomework.ico" />
     <None Include="res\SiatelHomework.rc2" />
     <None Include="ReadMe.txt" />
+    <None Include="SoftwareContentRegister.html" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SiatelHomework.rc" />
