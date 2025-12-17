@@ -1,4 +1,4 @@
-/* Copyright (C) 2014-2025 Stefan-Mihai MOGA
+/* Copyright (C) 2014-2026 Stefan-Mihai MOGA
 This file is part of BTreeAccess application developed by Stefan-Mihai MOGA.
 
 BTreeAccess is free software: you can redistribute it and/or modify it
@@ -25,7 +25,7 @@ BTreeAccess. If not, see <http://www.opensource.org/licenses/gpl-3.0.html>*/
 //   - CNetworkTree:   Implements a B-Tree-like structure for managing network nodes.
 //   - CNetworkHash:   Implements a hash table for fast access to network items.
 //
-// Copyright (C) 2014-2025 Stefan-Mihai MOGA
+// Copyright (C) 2014-2026 Stefan-Mihai MOGA
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
