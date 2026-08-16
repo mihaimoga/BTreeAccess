@@ -115,12 +115,14 @@ CString CNetworkBase::FormatLastError(DWORD dwLastError)
  */
 bool CNetworkBase::FileExists(CString strFilename)
 {
+	// Open the file in read-only binary mode; success means the file exists.
 	const UINT nBinaryFileFlags = CFile::modeRead | CFile::typeBinary;
 	try {
 		CFile pBinaryFile(strFilename, nBinaryFileFlags);
-		pBinaryFile.Close();
+		pBinaryFile.Close(); // Close immediately — we only needed to confirm existence.
 	}
 	catch (CFileException* pFileException) {
+		// File could not be opened (missing, locked, etc.); log and report absent.
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException->GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T("%s\n"), lpszFileException);
@@ -143,11 +145,11 @@ bool CNetworkBase::IsValidCode(CString strFileCode)
 	const int nLength = strFileCode.GetLength();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
 	{
-		TCHAR chDigit = strFileCode.GetAt(nIndex);
-		if (-1 == strNetworkDigitString.Find(chDigit))
+		TCHAR chDigit = strFileCode.GetAt(nIndex); // Extract each character of the code.
+		if (-1 == strNetworkDigitString.Find(chDigit)) // Character not in the allowed set.
 			return false;
 	}
-	return true;
+	return true; // All characters passed validation.
 }
 
 /**
@@ -162,17 +164,20 @@ CString CNetworkBase::EncodeNetworkID(int nKey)
 {
 	CString strKey;
 
+	// Extract the least-significant digit before entering the loop.
 	int nModulo = nKey % intNetworkDigitLength;
 	nKey /= intNetworkDigitLength;
 
+	// Build the encoded string from least- to most-significant digit.
 	while (nKey != 0)
 	{
-		strKey.Insert(0, strNetworkDigitString.GetAt(nModulo));
+		strKey.Insert(0, strNetworkDigitString.GetAt(nModulo)); // Prepend current digit.
 		nModulo = nKey % intNetworkDigitLength;
 		nKey /= intNetworkDigitLength;
 	}
-	strKey.Insert(0, strNetworkDigitString.GetAt(nModulo));
+	strKey.Insert(0, strNetworkDigitString.GetAt(nModulo)); // Prepend the final digit.
 
+	// Left-pad with '0' characters to reach the required fixed code length.
 	while (strKey.GetLength() < MAX_CODE_LENGTH)
 		strKey.Insert(0, _T('0'));
 
@@ -191,14 +196,15 @@ int CNetworkBase::DecodeNetworkID(CString strKey)
 {
 	int nKey = 0;
 
+	// Process each character left-to-right using positional (base-N) arithmetic.
 	const int nLength = strKey.GetLength();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
 	{
-		nKey *= intNetworkDigitLength;
-		TCHAR chDigit = strKey.GetAt(nIndex);
-		int nDigit = strNetworkDigitString.Find(chDigit);
-		ASSERT(nDigit >= 0);
-		nKey += nDigit;
+		nKey *= intNetworkDigitLength;             // Shift accumulated value left by one digit.
+		TCHAR chDigit = strKey.GetAt(nIndex);     // Get the current encoded character.
+		int nDigit = strNetworkDigitString.Find(chDigit); // Convert character to its numeric value.
+		ASSERT(nDigit >= 0);                      // Character must be in the allowed digit set.
+		nKey += nDigit;                            // Accumulate the digit value.
 	}
 
 	return nKey;
@@ -259,33 +265,43 @@ CString CNetworkBase::GetFilePath(int nKey, CStringArray& arrFilePath)
 {
 	bool bFirstTime = true;
 	CString strFilePath;
-	arrFilePath.RemoveAll();
-	int folder_no = nKey % BALANCED_TREE_ORDER;
-	int file_name = nKey - folder_no;
+	arrFilePath.RemoveAll(); // Clear any previous path components.
+
+	// Decompose key into folder hierarchy using BALANCED_TREE_ORDER as the radix.
+	int folder_no = nKey % BALANCED_TREE_ORDER; // Least-significant folder index.
+	int file_name = nKey - folder_no;           // Remaining key after removing leaf index.
+
 	while (file_name != 0)
 	{
 		if (bFirstTime)
 		{
+			// First iteration: the leaf is the filename, not a folder.
 			strFilePath = FormatFilename(folder_no);
 			bFirstTime = false;
 		}
 		else
 		{
+			// Subsequent iterations: prepend each intermediate folder to the path.
 			CString strFolder = FormatFolder(folder_no);
-			arrFilePath.InsertAt(0, strFolder);
+			arrFilePath.InsertAt(0, strFolder); // Track folder for directory creation.
 			strFolder += _T("\\");
-			strFilePath.Insert(0, strFolder);
+			strFilePath.Insert(0, strFolder);   // Prepend folder to the path string.
 		}
+		// Move up one level in the hierarchy.
 		nKey /= BALANCED_TREE_ORDER;
 		folder_no = nKey % BALANCED_TREE_ORDER;
 		file_name = nKey - folder_no;
 	}
+
+	// Handle the root (most-significant) component of the path.
 	if (bFirstTime)
 	{
+		// Key fit entirely in one level — just a filename, no subdirectories.
 		strFilePath = FormatFilename(folder_no);
 	}
 	else
 	{
+		// Prepend the top-level folder to complete the path.
 		CString strFolder = FormatFolder(folder_no);
 		arrFilePath.InsertAt(0, strFolder);
 		strFolder += _T("\\");
@@ -307,17 +323,20 @@ CString CNetworkBase::GetFilePath(int nKey, CStringArray& arrFilePath)
 bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray& strSubFolders)
 {
 	CString strNetworkPath = strRootFolder;
+
+	// Verify the root folder is accessible before descending into subfolders.
 	if (!SetCurrentDirectory(strNetworkPath))
 		return false;
 
+	// Walk each subfolder level, creating directories that do not yet exist.
 	const int nLength = (int)strSubFolders.GetCount();
 	for (int nIndex = 0; nIndex < nLength; nIndex++)
 	{
 		strNetworkPath.AppendFormat(_T("\\%s"), static_cast<LPCWSTR>(strSubFolders.GetAt(nIndex)));
-		if (!SetCurrentDirectory(strNetworkPath))
+		if (!SetCurrentDirectory(strNetworkPath)) // Directory does not exist yet.
 		{
-			if (!CreateDirectory(strNetworkPath, nullptr))
-				return false;
+			if (!CreateDirectory(strNetworkPath, nullptr)) // Attempt to create it.
+				return false; // Creation failed; abort.
 		}
 	}
 
@@ -389,7 +408,8 @@ bool CNetworkTree::ExportData()
 int CNetworkTree::GenerateID()
 {
 	CString strFilePath;
-	int nKey = GetNextID();
+	int nKey = GetNextID(); // Pick an initial random candidate.
+	// Keep generating until we find a key not already in the tree.
 	while (SearchNode(nKey, strFilePath))
 		nKey = GetNextID();
 	return nKey;
@@ -404,13 +424,14 @@ int CNetworkTree::GenerateID()
  */
 bool CNetworkTree::CreateTree()
 {
+	// Null-initialize all child pointers (BALANCED_TREE_ORDER + 1 slots).
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
 	{
 		m_ptrLink[i] = nullptr;
 	}
-	SetLeaf(true);
-	SetRoot(this);
-	SetSize(0);
+	SetLeaf(true);  // A freshly created node has no children — it is a leaf.
+	SetRoot(this);  // This node is the root of its own tree.
+	SetSize(0);     // No keys stored yet.
 	return true;
 }
 
@@ -423,12 +444,13 @@ bool CNetworkTree::CreateTree()
  */
 bool CNetworkTree::DeleteTree()
 {
+	// Recursively delete each non-null child node (child destructor calls DeleteTree).
 	for (int i = 0; i <= BALANCED_TREE_ORDER; i++)
 	{
 		if (m_ptrLink[i] != nullptr)
 		{
-			delete m_ptrLink[i];
-			m_ptrLink[i] = nullptr;
+			delete m_ptrLink[i];    // Triggers child's destructor which recurses.
+			m_ptrLink[i] = nullptr; // Prevent dangling pointer.
 		}
 	}
 	return true;
@@ -483,6 +505,7 @@ bool CNetworkTree::SearchNode(int nKey, CString& strFilePath)
  */
 CNetworkHash::CNetworkHash()
 {
+	// Pre-size both hash tables to match the maximum expected number of entries.
 	m_mapFileCode.InitHashTable(MAX_RANDOM_DATA);
 	m_mapFilePath.InitHashTable(MAX_RANDOM_DATA);
 }
@@ -591,7 +614,8 @@ int CNetworkHash::GenerateID()
 {
 	int nLevel = 0;
 	CString strFilePath;
-	int nKey = GetNextID();
+	int nKey = GetNextID(); // Pick an initial random candidate.
+	// Keep generating until we find a key not already in the hash table.
 	while (SearchItem(nKey, nLevel, strFilePath))
 		nKey = GetNextID();
 	return nKey;
@@ -609,9 +633,10 @@ int CNetworkHash::GenerateID()
  */
 bool CNetworkHash::SearchItem(int nKey, int& nLevel, CString& strFilePath)
 {
+	// Look up the level and file path independently; both must be present for a valid entry.
 	bool bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
 	bool bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
-	return (bFileCode && bFilePath);
+	return (bFileCode && bFilePath); // Only succeed if both maps contain the key.
 }
 
 /**
@@ -626,6 +651,7 @@ bool CNetworkHash::SearchItem(int nKey, int& nLevel, CString& strFilePath)
  */
 bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
 {
+	// Overwrite existing values in both maps (SetAt inserts or replaces).
 	m_mapFileCode.SetAt(nKey, nLevel);
 	m_mapFilePath.SetAt(nKey, strFilePath);
 	return true;
@@ -643,9 +669,9 @@ bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
  */
 bool CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
 {
-	m_listKey.Add(nKey);
-	m_mapFileCode.SetAt(nKey, nLevel);
-	m_mapFilePath.SetAt(nKey, strFilePath);
+	m_listKey.Add(nKey);               // Record the key in the ordered list for iteration.
+	m_mapFileCode.SetAt(nKey, nLevel); // Store the associated level.
+	m_mapFilePath.SetAt(nKey, strFilePath); // Store the associated file path.
 	return true;
 }
 
@@ -666,28 +692,31 @@ bool CNetworkHash::DeleteItem(int nKey)
 	{
 		if (SearchItem(nKey, nNewLevel, strNewFilePath))
 		{
+			// Remove the key from the ordered list so iteration stays consistent.
 			for (int nIndex = 0; nIndex < nLength; nIndex++)
 			{
 				if (nKey == m_listKey.GetAt(nIndex))
 				{
 					m_listKey.RemoveAt(nIndex);
-					break;
+					break; // Key found and removed; no need to continue.
 				}
 			}
 
+			// Find the item whose level equals the new size (i.e., the last slot),
+			// and move its physical file into the slot freed by the deleted entry.
 			for (int nIndex = 0; nIndex < GetSize(); nIndex++)
 			{
 				const int nCurrentKey = m_listKey.GetAt(nIndex);
 				if (SearchItem(nCurrentKey, nOldLevel, strOldFilePath))
 				{
-					if (nOldLevel == GetSize())
+					if (nOldLevel == GetSize()) // This item occupies the last slot.
 					{
 						CString strFileName = strNewFilePath;
-						// strNewFilePath = the file just deleted
-						// strOldFilePath = the file in the old location
-						strOldFilePath.Insert(0, GetRootFolder());
-						strFileName.Insert(0, GetRootFolder());
-						if (!MoveFile(strOldFilePath, strFileName))
+						// strNewFilePath = path that was freed by the deleted item.
+						// strOldFilePath = current physical location of the item being moved.
+						strOldFilePath.Insert(0, GetRootFolder()); // Build absolute source path.
+						strFileName.Insert(0, GetRootFolder());    // Build absolute destination path.
+						if (!MoveFile(strOldFilePath, strFileName)) // Relocate the file on disk.
 						{
 							const DWORD dwLastError = GetLastError();
 							CString strError = FormatLastError(dwLastError);
@@ -695,15 +724,17 @@ bool CNetworkHash::DeleteItem(int nKey)
 						}
 						else
 						{
+							// Update the hash table to reflect the item's new location.
 							VERIFY(UpdateItem(nCurrentKey, nNewLevel, strNewFilePath));
 						}
-						break;
+						break; // Only one item needs to be relocated.
 					}
 				}
 			}
 		}
 	}
+	// Remove the deleted key from both hash maps.
 	bool bFileCode = m_mapFileCode.RemoveKey(nKey);
 	bool bFilePath = m_mapFilePath.RemoveKey(nKey);
-	return (bFileCode && bFilePath);
+	return (bFileCode && bFilePath); // Both removals must succeed for a clean delete.
 }

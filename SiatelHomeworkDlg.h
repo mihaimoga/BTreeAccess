@@ -42,7 +42,7 @@ public:
 	CSiatelHomeworkDlg(CWnd* pParent = NULL);
 
 // Dialog Data
-	enum { IDD = IDD_SIATELHOMEWORK_DIALOG };
+	enum { IDD = IDD_SIATELHOMEWORK_DIALOG }; // resource ID of the main dialog template
 
 	protected:
 	/**
@@ -162,7 +162,7 @@ protected:
 		LPVOID lpData);
 
 	/** @brief Pointer to ProgressFunc, passed to CopyFileEx as the progress callback. */
-	LPPROGRESS_ROUTINE m_funcProgress = nullptr;
+	LPPROGRESS_ROUTINE m_funcProgress = nullptr; // initialised in OnInitDialog; cast from CSiatelHomeworkDlg::ProgressFunc
 
 	DECLARE_MESSAGE_MAP()
 };
