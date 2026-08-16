@@ -51,10 +51,21 @@ IMPLEMENT_DYNAMIC(CNetworkHash, CNetworkBase)
  * Base class providing utility functions for file operations, network ID
  * encoding/decoding, and path formatting.
  */
+
+/**
+ * CNetworkBase (constructor)
+ * --------------------------
+ * Constructs a CNetworkBase object with default state.
+ */
 	CNetworkBase::CNetworkBase()
 {
 }
 
+/**
+ * ~CNetworkBase (destructor)
+ * --------------------------
+ * Destroys the CNetworkBase object and releases any resources.
+ */
 CNetworkBase::~CNetworkBase()
 {
 }
@@ -323,11 +334,22 @@ bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray& strSub
  * Implements a B-Tree-like structure for managing network nodes.
  * Inherits from CNetworkBase.
  */
+
+/**
+ * CNetworkTree (constructor)
+ * --------------------------
+ * Constructs the CNetworkTree object and initializes the tree structure.
+ */
 CNetworkTree::CNetworkTree()
 {
 	VERIFY(CreateTree());
 }
 
+/**
+ * ~CNetworkTree (destructor)
+ * --------------------------
+ * Destroys the CNetworkTree object and frees all allocated nodes.
+ */
 CNetworkTree::~CNetworkTree()
 {
 	VERIFY(DeleteTree());
@@ -453,12 +475,23 @@ bool CNetworkTree::SearchNode(int nKey, CString& strFilePath)
  * Implements a hash table for fast access to network items.
  * Inherits from CNetworkBase.
  */
+
+/**
+ * CNetworkHash (constructor)
+ * --------------------------
+ * Constructs the CNetworkHash object and initializes the internal hash tables.
+ */
 CNetworkHash::CNetworkHash()
 {
 	m_mapFileCode.InitHashTable(MAX_RANDOM_DATA);
 	m_mapFilePath.InitHashTable(MAX_RANDOM_DATA);
 }
 
+/**
+ * ~CNetworkHash (destructor)
+ * --------------------------
+ * Destroys the CNetworkHash object and releases all resources.
+ */
 CNetworkHash::~CNetworkHash()
 {
 }

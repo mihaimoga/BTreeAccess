@@ -57,10 +57,17 @@ protected:
 	DECLARE_MESSAGE_MAP()
 };
 
+/**
+ * @brief Constructs the About dialog.
+ */
 CAboutDlg::CAboutDlg() : CDialog(CAboutDlg::IDD)
 {
 }
 
+/**
+ * @brief Performs DDX/DDV data exchange for the About dialog controls.
+ * @param pDX Pointer to the CDataExchange object.
+ */
 void CAboutDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
@@ -74,6 +81,12 @@ BEGIN_MESSAGE_MAP(CAboutDlg, CDialog)
 	ON_WM_DESTROY()
 END_MESSAGE_MAP()
 
+/**
+ * @brief Retrieves the fully qualified path of the current executable module.
+ * @param pdwLastError Optional pointer that receives the last Win32 error code.
+ *        Set to ERROR_SUCCESS on success, or the failing error code on failure.
+ * @return The full path of the module as a CString, or an empty CString on failure.
+ */
 CString GetModuleFileName(_Inout_opt_ DWORD* pdwLastError = nullptr)
 {
 	CString strModuleFileName;
@@ -104,6 +117,10 @@ CString GetModuleFileName(_Inout_opt_ DWORD* pdwLastError = nullptr)
 	}
 }
 
+/**
+ * @brief Initializes the About dialog; populates the version label and sets hyperlinks.
+ * @return TRUE to set input focus to the first control, FALSE otherwise.
+ */
 BOOL CAboutDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
@@ -142,6 +159,9 @@ BOOL CAboutDlg::OnInitDialog()
 	// EXCEPTION: OCX Property Pages should return FALSE
 }
 
+/**
+ * @brief Handles WM_DESTROY for the About dialog.
+ */
 void CAboutDlg::OnDestroy()
 {
 	CDialog::OnDestroy();
@@ -149,6 +169,10 @@ void CAboutDlg::OnDestroy()
 
 // CSiatelHomeworkDlg dialog
 
+/**
+ * @brief Constructs the main application dialog.
+ * @param pParent Pointer to the parent window. Defaults to NULL.
+ */
 CSiatelHomeworkDlg::CSiatelHomeworkDlg(CWnd* pParent /*=NULL*/)
 	: CDialog(CSiatelHomeworkDlg::IDD, pParent)
 {
@@ -156,6 +180,10 @@ CSiatelHomeworkDlg::CSiatelHomeworkDlg(CWnd* pParent /*=NULL*/)
 	m_treeNetwork = nullptr; m_hashNetwork = nullptr;
 }
 
+/**
+ * @brief Performs DDX/DDV data exchange between dialog controls and member variables.
+ * @param pDX Pointer to the CDataExchange object.
+ */
 void CSiatelHomeworkDlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialog::DoDataExchange(pDX);
@@ -190,9 +218,12 @@ BEGIN_MESSAGE_MAP(CSiatelHomeworkDlg, CDialog)
 	ON_EN_CHANGE(IDC_DELETE_CODE, &CSiatelHomeworkDlg::OnEnChangeDeleteCode)
 END_MESSAGE_MAP()
 
-
 // CSiatelHomeworkDlg message handlers
 
+/**
+ * @brief Initializes the main dialog; sets up fonts, controls, and network data structures.
+ * @return TRUE to set input focus to the first control, FALSE otherwise.
+ */
 BOOL CSiatelHomeworkDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
@@ -276,6 +307,9 @@ BOOL CSiatelHomeworkDlg::OnInitDialog()
 	return TRUE;  // return TRUE  unless you set the focus to a control
 }
 
+/**
+ * @brief Handles WM_DESTROY; exports network data and frees allocated tree/hash structures.
+ */
 void CSiatelHomeworkDlg::OnDestroy()
 {
 	CDialog::OnDestroy();
@@ -306,6 +340,13 @@ void CSiatelHomeworkDlg::OnDestroy()
 	}
 }
 
+/**
+ * @brief Handles WM_SYSCOMMAND messages.
+ *        Dispatches the About box and external social/project URL commands;
+ *        delegates all other system commands to the base class.
+ * @param nID System command identifier.
+ * @param lParam Additional message-dependent data.
+ */
 void CSiatelHomeworkDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
 	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
@@ -373,6 +414,10 @@ void CSiatelHomeworkDlg::OnSysCommand(UINT nID, LPARAM lParam)
 //  to draw the icon.  For MFC applications using the document/view model,
 //  this is automatically done for you by the framework.
 
+/**
+ * @brief Handles WM_PAINT; draws the application icon centered in the client area
+ *        when the window is in its minimized (iconic) state.
+ */
 void CSiatelHomeworkDlg::OnPaint()
 {
 	if (IsIconic())
@@ -400,12 +445,20 @@ void CSiatelHomeworkDlg::OnPaint()
 
 // The system calls this function to obtain the cursor to display while the user drags
 //  the minimized window.
+/**
+ * @brief Returns the cursor to display while the user drags the minimized window.
+ * @return Handle to the application icon cast as an HCURSOR.
+ */
 HCURSOR CSiatelHomeworkDlg::OnQueryDragIcon()
 {
 	return static_cast<HCURSOR>(m_hIcon);
 }
 
-
+/**
+ * @brief Handles the Browse button click.
+ *        Opens a folder browser dialog and, on confirmation, initialises the
+ *        network data structure from the selected root folder.
+ */
 void CSiatelHomeworkDlg::OnBnClickedBrowse()
 {
 	const UINT nFolderFlags = BIF_RETURNFSANCESTORS | BIF_RETURNONLYFSDIRS | BIF_USENEWUI | BIF_VALIDATE;
@@ -443,6 +496,10 @@ void CSiatelHomeworkDlg::OnBnClickedBrowse()
 	}
 }
 
+/**
+ * @brief Handles the File List button click.
+ *        Opens a modal dialog showing all files currently stored in the network.
+ */
 void CSiatelHomeworkDlg::OnBnClickedFileList()
 {
 	CSiatelFileListDlg dlgSiatelFileList(this);
@@ -452,6 +509,10 @@ void CSiatelHomeworkDlg::OnBnClickedFileList()
 	dlgSiatelFileList.DoModal();
 }
 
+/**
+ * @brief Handles the Input File button click.
+ *        Opens a file-open dialog so the user can select the source file to upload.
+ */
 void CSiatelHomeworkDlg::OnBnClickedInputFile()
 {
 	CFileDialog pFileDialog(TRUE, nullptr, nullptr,
@@ -465,6 +526,11 @@ void CSiatelHomeworkDlg::OnBnClickedInputFile()
 	}
 }
 
+/**
+ * @brief Handles the Upload button click.
+ *        Generates a network ID, determines a storage path, and copies the
+ *        selected input file into the managed network folder.
+ */
 void CSiatelHomeworkDlg::OnBnClickedUpload()
 {
 	BOOL bCancelOperation = FALSE;
@@ -513,6 +579,10 @@ void CSiatelHomeworkDlg::OnBnClickedUpload()
 	}
 }
 
+/**
+ * @brief Handles the Output File button click.
+ *        Opens a file-save dialog so the user can specify the download destination path.
+ */
 void CSiatelHomeworkDlg::OnBnClickedOutputFile()
 {
 	CFileDialog pFileDialog(FALSE, nullptr, nullptr,
@@ -526,6 +596,11 @@ void CSiatelHomeworkDlg::OnBnClickedOutputFile()
 	}
 }
 
+/**
+ * @brief Handles the Download button click.
+ *        Decodes the input network code, locates the corresponding file in the
+ *        network store, and copies it to the selected output path.
+ */
 void CSiatelHomeworkDlg::OnBnClickedDownload()
 {
 	int nLevel = 0;
@@ -587,6 +662,11 @@ void CSiatelHomeworkDlg::OnBnClickedDownload()
 	}
 }
 
+/**
+ * @brief Handles the Delete button click.
+ *        Decodes the delete network code, locates the file on disk, removes it,
+ *        and updates the network index accordingly.
+ */
 void CSiatelHomeworkDlg::OnBnClickedDelete()
 {
 	int nLevel = 0;
@@ -644,18 +724,41 @@ void CSiatelHomeworkDlg::OnBnClickedDelete()
 	}
 }
 
+/**
+ * @brief Handles EN_CHANGE for the input code edit control.
+ *        Reads the current text and enables or disables the Download button
+ *        based on whether both an output file and an input code are present.
+ */
 void CSiatelHomeworkDlg::OnEnChangeInputCode()
 {
 	m_ctrlInputCode.GetWindowText(m_strInputCode);
 	m_ctrlDownload.EnableWindow(!m_strOutputFile.IsEmpty() && !m_strInputCode.IsEmpty());
 }
 
+/**
+ * @brief Handles EN_CHANGE for the delete code edit control.
+ *        Reads the current text and enables or disables the Delete button
+ *        based on whether a delete code has been entered.
+ */
 void CSiatelHomeworkDlg::OnEnChangeDeleteCode()
 {
 	m_ctrlDeleteCode.GetWindowText(m_strDeleteCode);
 	m_ctrlDelete.EnableWindow(!m_strDeleteCode.IsEmpty());
 }
 
+/**
+ * @brief CopyFileEx progress callback; updates the progress bar control during a file copy.
+ * @param TotalFileSize Total size of the file being copied.
+ * @param TotalBytesTransferred Total number of bytes transferred so far.
+ * @param StreamSize Size of the current stream (unused).
+ * @param StreamBytesTransferred Bytes transferred in the current stream (unused).
+ * @param dwStreamNumber Current stream number (unused).
+ * @param dwCallbackReason Reason the callback was invoked (unused).
+ * @param hSourceFile Handle to the source file (unused).
+ * @param hDestinationFile Handle to the destination file (unused).
+ * @param lpData Application-defined pointer; expected to be a CProgressCtrl*.
+ * @return PROGRESS_CONTINUE to allow the copy to proceed.
+ */
 DWORD CALLBACK CSiatelHomeworkDlg::ProgressFunc(
 		LARGE_INTEGER TotalFileSize,
 		LARGE_INTEGER TotalBytesTransferred,
