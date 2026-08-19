@@ -238,6 +238,7 @@
     <ClInclude Include="VersionInfo.h" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="AGENTS.md" />
     <None Include="README.md" />
     <None Include="ReleaseNotes.html" />
     <None Include="res\SiatelHomework.ico" />

@@ -89,6 +89,7 @@
     <None Include="ReleaseNotes.html" />
     <None Include="SoftwareContentRegister.html" />
     <None Include="README.md" />
+    <None Include="AGENTS.md" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SiatelHomework.rc">
