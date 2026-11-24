@@ -144,22 +144,154 @@ if leaf[x]
 
 						<h2>The Practice</h2>
 
-						<p>The main implementation is done in <code>CNetworkHash</code> class (<em>SiatelHomeworkExt.h</em> and <em>SiatelHomeworkExt.cpp</em> files) using hashmaps, as follows:</p>
+						<p>The main implementation is in the <em>SiatelHomeworkExt.h</em> and <em>SiatelHomeworkExt.cpp</em> files and is split into three classes:</p>
+
+						<ul>
+							<li><code>CNetworkBase</code> - the base class: it encodes a key as a code (<code>EncodeNetworkID</code>) and decodes it back (<code>DecodeNetworkID</code>), validates a code (<code>IsValidCode</code>), picks a random key (<code>GetNextID</code>), builds the path of a file (<code>GetFilePath</code>) and creates its folders (<code>CreateNetworkPath</code>);</li>
+							<li><code>CNetworkHash</code> - keeps the index of the stored files in hashmaps; the application uses this class, because <code>USE_HASH_METHOD</code> is <code>TRUE</code>;</li>
+							<li><code>CNetworkTree</code> - a B-tree node, with <i>B-Tree-Create</i> (<code>CreateTree</code>) and <i>B-Tree-Search</i> (<code>SearchNode</code>). The insert, update, import and export operations are not implemented yet, so the application does not use it to index the files.</li>
+						</ul>
+
+						<h3>Codes and folders</h3>
+
+						<p>Each upload gets a random key that is not used yet. The code that the user receives is this key written in base 36 (the digits <code>0-9</code> and the letters <code>A-Z</code>) and padded with zeros to four characters (<code>MAX_CODE_LENGTH</code>); for example, the key 65535 is the code <code>1EKF</code>.</p>
+
+						<p>The folder of a file does not depend on its code, but on its <i>slot</i>: the number of files that are already stored when the file is uploaded. The slot is written in base N, where N is <code>BALANCED_TREE_ORDER</code> (it is 4 in the current code, while the comment from the source says it should be 1000). The last digit gives the name of the file and each of the other digits gives the name of a folder; they are encoded like a code, with four characters, and the file name has the <em>.dat</em> extension (<code>FormatFolder</code> and <code>FormatFilename</code>). For N = 4, the first slots are stored as follows:</p>
+
+						<pre>
+slot  0: 0000.dat
+slot  1: 0001.dat
+slot  2: 0002.dat
+slot  3: 0003.dat
+slot  4: 0001\0000.dat
+slot  5: 0001\0001.dat
+slot  8: 0002\0000.dat
+slot 15: 0003\0003.dat
+slot 16: 0001\0000\0000.dat
+slot 20: 0001\0001\0000.dat
+slot 64: 0001\0000\0000\0000.dat</pre>
+
+						<p>In this way, no folder stores more than N files and no folder has more than N subfolders. When a file is deleted, the file from the last slot is moved into the freed slot, so the slots remain contiguous; the code of the moved file does not change. The code and the path are built as follows:</p>
+
+						<pre lang="C++">
+CString CNetworkBase::EncodeNetworkID(int nKey)
+{
+	CString strKey;
+
+	// Extract the least-significant digit before entering the loop.
+	int nModulo = nKey % intNetworkDigitLength;
+	nKey /= intNetworkDigitLength;
+
+	// Build the encoded string from least- to most-significant digit.
+	while (nKey != 0)
+	{
+		strKey.Insert(0, strNetworkDigitString.GetAt(nModulo)); // Prepend current digit.
+		nModulo = nKey % intNetworkDigitLength;
+		nKey /= intNetworkDigitLength;
+	}
+	strKey.Insert(0, strNetworkDigitString.GetAt(nModulo)); // Prepend the final digit.
+
+	// Left-pad with &#39;0&#39; characters to reach the required fixed code length.
+	while (strKey.GetLength() &lt; MAX_CODE_LENGTH)
+		strKey.Insert(0, _T(&#39;0&#39;));
+
+	return strKey;
+}
+
+CString CNetworkBase::GetFilePath(int nKey, CStringArray&amp; arrFilePath)
+{
+	bool bFirstTime = true;
+	CString strFilePath;
+	arrFilePath.RemoveAll(); // Clear any previous path components.
+
+	// Decompose key into folder hierarchy using BALANCED_TREE_ORDER as the radix.
+	int folder_no = nKey % BALANCED_TREE_ORDER; // Least-significant folder index.
+	int file_name = nKey - folder_no;           // Remaining key after removing leaf index.
+
+	while (file_name != 0)
+	{
+		if (bFirstTime)
+		{
+			// First iteration: the leaf is the filename, not a folder.
+			strFilePath = FormatFilename(folder_no);
+			bFirstTime = false;
+		}
+		else
+		{
+			// Subsequent iterations: prepend each intermediate folder to the path.
+			CString strFolder = FormatFolder(folder_no);
+			arrFilePath.InsertAt(0, strFolder); // Track folder for directory creation.
+			strFolder += _T(&quot;\\&quot;);
+			strFilePath.Insert(0, strFolder);   // Prepend folder to the path string.
+		}
+		// Move up one level in the hierarchy.
+		nKey /= BALANCED_TREE_ORDER;
+		folder_no = nKey % BALANCED_TREE_ORDER;
+		file_name = nKey - folder_no;
+	}
+
+	// Handle the root (most-significant) component of the path.
+	if (bFirstTime)
+	{
+		// Key fit entirely in one level &mdash; just a filename, no subdirectories.
+		strFilePath = FormatFilename(folder_no);
+	}
+	else
+	{
+		// Prepend the top-level folder to complete the path.
+		CString strFolder = FormatFolder(folder_no);
+		arrFilePath.InsertAt(0, strFolder);
+		strFolder += _T(&quot;\\&quot;);
+		strFilePath.Insert(0, strFolder);
+	}
+
+	return strFilePath;
+}
+
+bool CNetworkBase::CreateNetworkPath(CString strRootFolder, CStringArray&amp; strSubFolders)
+{
+	CString strNetworkPath = strRootFolder;
+
+	// Verify the root folder is accessible before descending into subfolders.
+	if (!SetCurrentDirectory(strNetworkPath))
+		return false;
+
+	// Walk each subfolder level, creating directories that do not yet exist.
+	const int nLength = (int)strSubFolders.GetCount();
+	for (int nIndex = 0; nIndex &lt; nLength; nIndex++)
+	{
+		strNetworkPath.AppendFormat(_T(&quot;\\%s&quot;), static_cast&lt;LPCWSTR&gt;(strSubFolders.GetAt(nIndex)));
+		if (!SetCurrentDirectory(strNetworkPath)) // Directory does not exist yet.
+		{
+			if (!CreateDirectory(strNetworkPath, nullptr)) // Attempt to create it.
+				return false; // Creation failed; abort.
+		}
+	}
+
+	return true;
+}</pre>
+
+						<h3>The index</h3>
+
+						<p>The index of the stored files is kept by the <code>CNetworkHash</code> class, using hashmaps. For every key it holds the slot of the file (named <code>nLevel</code> in the code) and its relative path. The class has the following methods:</p>
 
 						<ul class="method">
 							<li><code>void RemoveAll()</code> - removes all items from database</li>
-							<li><code>BOOL ImportData()</code> - loads database from a text configuration file</li>
-							<li><code>BOOL ExportData()</code> - saves database to a text configuration file</li>
+							<li><code>bool ImportData()</code> - loads database from a text configuration file</li>
+							<li><code>bool ExportData()</code> - saves database to a text configuration file</li>
 							<li><code>int GenerateID()</code> - generates a new key for insertion</li>
-							<li><code>BOOL SearchItem(int nKey, int &amp; nLevel, CString &amp; strFilePath)</code> - allows searching for a file into database, based on given key</li>
-							<li><code>BOOL UpdateItem(int nKey, int nLevel, CString strFilePath)</code> - allows updating a file into database, based on given key</li>
-							<li><code>BOOL InsertItem(int nKey, int nLevel, CString strFilePath)</code> - allows inserting a file into database, based on given key</li>
-							<li><code>BOOL DeleteItem(int nKey)</code> - allows deleting a file from database, based on given key</li>
+							<li><code>bool SearchItem(int nKey, int&amp; nLevel, CString&amp; strFilePath)</code> - allows searching for a file into database, based on given key</li>
+							<li><code>bool UpdateItem(int nKey, int nLevel, CString strFilePath)</code> - allows updating a file into database, based on given key</li>
+							<li><code>bool InsertItem(int nKey, int nLevel, CString strFilePath)</code> - allows inserting a file into database, based on given key</li>
+							<li><code>bool DeleteItem(int nKey)</code> - allows deleting a file from database, based on given key</li>
 						</ul>
+
+						<p>The index is saved in the <em>filelist.txt</em> file, in the root folder: <code>ImportData</code> reads it when the root folder is selected and <code>ExportData</code> writes it when the application is closed. Each line holds the key, the slot and the relative path of a file, separated by spaces; for example, the line <code>65535 4 0001\0000.dat</code> says that the file with the code <code>1EKF</code> is in the slot 4, at the path <code>0001\0000.dat</code>. The implementation is as follows:</p>
 
 						<pre lang="C++">
 CNetworkHash::CNetworkHash()
 {
+	// Pre-size both hash tables to match the maximum expected number of entries.
 	m_mapFileCode.InitHashTable(MAX_RANDOM_DATA);
 	m_mapFilePath.InitHashTable(MAX_RANDOM_DATA);
 }
@@ -175,7 +307,7 @@ void CNetworkHash::RemoveAll()
 	m_mapFilePath.RemoveAll();
 }
 
-BOOL CNetworkHash::ImportData()
+bool CNetworkHash::ImportData()
 {
 	int nLevel = 0, nFileCode = 0;
 	CString strFileLine, strFilePath;
@@ -191,20 +323,21 @@ BOOL CNetworkHash::ImportData()
 			nLevel = _tstoi(strFileLine.Mid(nFirstNoLength + 1, nSecondNoLength));
 			strFilePath = strFileLine.Mid(nSecondNoLength + 1);
 			VERIFY(InsertItem(nFileCode, nLevel, strFilePath));
-			TRACE(_T(&quot;Importing data %d %d %s ...\n&quot;), nFileCode, nLevel, strFilePath);
+			TRACE(_T(&quot;Importing data %d %d %s ...\n&quot;), nFileCode, nLevel, static_cast&lt;LPCWSTR&gt;(strFilePath));
 		}
 		pTextFile.Close();
-	} catch (CFileException *pFileException) {
+	}
+	catch (CFileException* pFileException) {
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException-&gt;GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T(&quot;%s\n&quot;), lpszFileException);
 		pFileException-&gt;Delete();
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkHash::ExportData()
+bool CNetworkHash::ExportData()
 {
 	int nLevel = 0;
 	CString strFileLine, strFilePath;
@@ -216,54 +349,58 @@ BOOL CNetworkHash::ExportData()
 		{
 			int nFileCode = GetKey(nIndex);
 			VERIFY(SearchItem(nFileCode, nLevel, strFilePath));
-			strFileLine.Format(_T(&quot;%d %d %s\n&quot;), nFileCode, nLevel, strFilePath);
+			strFileLine.Format(_T(&quot;%d %d %s\n&quot;), nFileCode, nLevel, static_cast&lt;LPCWSTR&gt;(strFilePath));
 			pTextFile.WriteString(strFileLine);
-			TRACE(_T(&quot;Exporting data %d %d %s ...\n&quot;), nFileCode, nLevel, strFilePath);
+			TRACE(_T(&quot;Exporting data %d %d %s ...\n&quot;), nFileCode, nLevel, static_cast&lt;LPCWSTR&gt;(strFilePath));
 		}
 		pTextFile.Close();
-	} catch (CFileException *pFileException) {
+	}
+	catch (CFileException* pFileException) {
 		TCHAR lpszFileException[0x1000];
 		VERIFY(pFileException-&gt;GetErrorMessage(lpszFileException, 0x1000));
 		TRACE(_T(&quot;%s\n&quot;), lpszFileException);
 		pFileException-&gt;Delete();
-		return FALSE;
+		return false;
 	}
-	return TRUE;
+	return true;
 }
 
 int CNetworkHash::GenerateID()
 {
 	int nLevel = 0;
 	CString strFilePath;
-	int nKey = GetNextID();
+	int nKey = GetNextID(); // Pick an initial random candidate.
+	// Keep generating until we find a key not already in the hash table.
 	while (SearchItem(nKey, nLevel, strFilePath))
 		nKey = GetNextID();
 	return nKey;
 }
 
-BOOL CNetworkHash::SearchItem(int nKey, int &amp; nLevel, CString &amp; strFilePath)
+bool CNetworkHash::SearchItem(int nKey, int&amp; nLevel, CString&amp; strFilePath)
 {
-	BOOL bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
-	BOOL bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
-	return (bFileCode &amp;&amp; bFilePath);
+	// Look up the level and file path independently; both must be present for a valid entry.
+	bool bFileCode = m_mapFileCode.Lookup(nKey, nLevel);
+	bool bFilePath = m_mapFilePath.Lookup(nKey, strFilePath);
+	return (bFileCode &amp;&amp; bFilePath); // Only succeed if both maps contain the key.
 }
 
-BOOL CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
+bool CNetworkHash::UpdateItem(int nKey, int nLevel, CString strFilePath)
 {
+	// Overwrite existing values in both maps (SetAt inserts or replaces).
 	m_mapFileCode.SetAt(nKey, nLevel);
 	m_mapFilePath.SetAt(nKey, strFilePath);
-	return TRUE;
+	return true;
 }
 
-BOOL CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
+bool CNetworkHash::InsertItem(int nKey, int nLevel, CString strFilePath)
 {
-	m_listKey.Add(nKey);
-	m_mapFileCode.SetAt(nKey, nLevel);
-	m_mapFilePath.SetAt(nKey, strFilePath);
-	return TRUE;
+	m_listKey.Add(nKey);               // Record the key in the ordered list for iteration.
+	m_mapFileCode.SetAt(nKey, nLevel); // Store the associated level.
+	m_mapFilePath.SetAt(nKey, strFilePath); // Store the associated file path.
+	return true;
 }
 
-BOOL CNetworkHash::DeleteItem(int nKey)
+bool CNetworkHash::DeleteItem(int nKey)
 {
 	int nOldLevel = 0, nNewLevel = 0;
 	CString strOldFilePath, strNewFilePath;
@@ -272,28 +409,31 @@ BOOL CNetworkHash::DeleteItem(int nKey)
 	{
 		if (SearchItem(nKey, nNewLevel, strNewFilePath))
 		{
+			// Remove the key from the ordered list so iteration stays consistent.
 			for (int nIndex = 0; nIndex &lt; nLength; nIndex++)
 			{
 				if (nKey == m_listKey.GetAt(nIndex))
 				{
 					m_listKey.RemoveAt(nIndex);
-					break;
+					break; // Key found and removed; no need to continue.
 				}
 			}
 
+			// Find the item whose level equals the new size (i.e., the last slot),
+			// and move its physical file into the slot freed by the deleted entry.
 			for (int nIndex = 0; nIndex &lt; GetSize(); nIndex++)
 			{
 				const int nCurrentKey = m_listKey.GetAt(nIndex);
 				if (SearchItem(nCurrentKey, nOldLevel, strOldFilePath))
 				{
-					if (nOldLevel == GetSize())
+					if (nOldLevel == GetSize()) // This item occupies the last slot.
 					{
 						CString strFileName = strNewFilePath;
-						// strNewFilePath = the file just deleted
-						// strOldFilePath = the file in the old location
-						strOldFilePath.Insert(0, GetRootFolder());
-						strFileName.Insert(0, GetRootFolder());
-						if (!MoveFile(strOldFilePath, strFileName))
+						// strNewFilePath = path that was freed by the deleted item.
+						// strOldFilePath = current physical location of the item being moved.
+						strOldFilePath.Insert(0, GetRootFolder()); // Build absolute source path.
+						strFileName.Insert(0, GetRootFolder());    // Build absolute destination path.
+						if (!MoveFile(strOldFilePath, strFileName)) // Relocate the file on disk.
 						{
 							const DWORD dwLastError = GetLastError();
 							CString strError = FormatLastError(dwLastError);
@@ -301,65 +441,67 @@ BOOL CNetworkHash::DeleteItem(int nKey)
 						}
 						else
 						{
+							// Update the hash table to reflect the item&#39;s new location.
 							VERIFY(UpdateItem(nCurrentKey, nNewLevel, strNewFilePath));
 						}
-						break;
+						break; // Only one item needs to be relocated.
 					}
 				}
 			}
 		}
 	}
-	BOOL bFileCode = m_mapFileCode.RemoveKey(nKey);
-	BOOL bFilePath = m_mapFilePath.RemoveKey(nKey);
-	return (bFileCode &amp;&amp; bFilePath);
+	// Remove the deleted key from both hash maps.
+	bool bFileCode = m_mapFileCode.RemoveKey(nKey);
+	bool bFilePath = m_mapFilePath.RemoveKey(nKey);
+	return (bFileCode &amp;&amp; bFilePath); // Both removals must succeed for a clean delete.
 }</pre>
 
 						<h2>Points of Interest</h2>
 
-						<p>Given the above code, the upload, download and delete operations are implemented as follows:</p>
+						<p>Given the above code, the upload, download and delete operations are implemented as follows (the <code>USE B-TREE</code> branches are empty, because <code>CNetworkTree</code> is not finished yet):</p>
 
 						<pre lang="C++">
 void CSiatelHomeworkDlg::OnBnClickedUpload()
 {
-	BOOL bCancelOperation = FALSE;
+	BOOL bCancelOperation = FALSE; // flag that can be set to TRUE to abort CopyFileEx mid-transfer
 	CString strMessage, strFilename;
-	CStringArray arrNetworkPath;
-	m_ctrlFolder.GetWindowText(m_strRootFolder);
+	CStringArray arrNetworkPath;   // receives the individual folder components of the storage path
+	m_ctrlFolder.GetWindowText(m_strRootFolder); // read the current root folder from the UI
 	if (m_strRootFolder.IsEmpty())
 	{
-		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK); // cannot proceed without a root folder
 	}
 	else
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
-			int nFileCode = m_hashNetwork-&gt;GenerateID();
-			int nPathCode = m_hashNetwork-&gt;GetSize();
-			CString strFileCode = m_hashNetwork-&gt;EncodeNetworkID(nFileCode);
-			CString strFilePath = m_hashNetwork-&gt;GetFilePath(nPathCode, arrNetworkPath);
-			VERIFY(m_hashNetwork-&gt;CreateNetworkPath(m_strRootFolder, arrNetworkPath));
-			strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
-			m_ctrlProgress.SetRange32(0, PROGRESS_RANGE);
-			m_ctrlProgress.SetPos(0);
-			m_ctrlProgress.ShowWindow(SW_SHOW);
-			if (!CopyFileEx(m_strInputFile, strFilename, 
-				 m_funcProgress, &amp;m_ctrlProgress, &amp;bCancelOperation, 0 ))
+			ASSERT(m_hashNetwork != nullptr);
+			int nFileCode = m_hashNetwork-&gt;GenerateID();                          // generate a unique integer ID for this file
+			int nPathCode = m_hashNetwork-&gt;GetSize();                             // current item count doubles as the path index
+			CString strFileCode = m_hashNetwork-&gt;EncodeNetworkID(nFileCode);      // encode the ID as a human-readable network code
+			CString strFilePath = m_hashNetwork-&gt;GetFilePath(nPathCode, arrNetworkPath); // resolve the relative storage path
+			VERIFY(m_hashNetwork-&gt;CreateNetworkPath(m_strRootFolder, arrNetworkPath));   // create any missing subdirectories
+			strFilename.Format(_T(&quot;%s%s&quot;), static_cast&lt;LPCWSTR&gt;(m_strRootFolder), static_cast&lt;LPCWSTR&gt;(strFilePath)); // absolute destination path
+			m_ctrlProgress.SetRange32(0, PROGRESS_RANGE); // configure the progress bar range
+			m_ctrlProgress.SetPos(0);                     // reset the indicator to the start
+			m_ctrlProgress.ShowWindow(SW_SHOW);           // make the progress bar visible
+			if (!CopyFileEx(m_strInputFile, strFilename, m_funcProgress, &amp;m_ctrlProgress, &amp;bCancelOperation, 0 ))
 			{
+				// copy failed: hide the progress bar and display the Win32 error description
 				m_ctrlProgress.ShowWindow(SW_HIDE);
 				const DWORD dwLastError = GetLastError();
 				m_ctrlMessage.SetWindowText(m_hashNetwork-&gt;FormatLastError(dwLastError));
 			}
 			else
 			{
-				VERIFY(m_hashNetwork-&gt;InsertItem(nFileCode, nPathCode, strFilePath));
-				strMessage.Format(_T(&quot;Done writing file %s [%s] ...&quot;), strFilename, strFileCode);
-				m_ctrlMessage.SetWindowText(strMessage);
-				m_ctrlOutputCode.SetWindowText(strFileCode);
-				m_ctrlProgress.SetPos(PROGRESS_RANGE-1);
-				m_ctrlProgress.UpdateWindow();
-				Sleep(SLEEP_INTERVAL);
-				m_ctrlProgress.ShowWindow(SW_HIDE);
+				VERIFY(m_hashNetwork-&gt;InsertItem(nFileCode, nPathCode, strFilePath)); // register the new file in the hash index
+				strMessage.Format(_T(&quot;Done writing file %s [%s] ...&quot;), static_cast&lt;LPCWSTR&gt;(strFilename), static_cast&lt;LPCWSTR&gt;(strFileCode));
+				m_ctrlMessage.SetWindowText(strMessage);         // show the success message with the destination path
+				m_ctrlOutputCode.SetWindowText(strFileCode);     // display the generated network code for the user to note
+				m_ctrlProgress.SetPos(PROGRESS_RANGE-1);         // advance bar to near-complete
+				m_ctrlProgress.UpdateWindow();                   // force an immediate repaint
+				Sleep(SLEEP_INTERVAL);                           // brief pause so the user can see the completed bar
+				m_ctrlProgress.ShowWindow(SW_HIDE);              // hide the progress bar
 			}
 		}
 		else // USE B-TREE
@@ -370,55 +512,56 @@ void CSiatelHomeworkDlg::OnBnClickedUpload()
 
 void CSiatelHomeworkDlg::OnBnClickedDownload()
 {
-	int nLevel = 0;
-	BOOL bCancelOperation = FALSE;
+	int nLevel = 0;                // receives the tree depth from SearchItem (required by the API, not used here)
+	BOOL bCancelOperation = FALSE; // flag that can be set to TRUE to abort CopyFileEx mid-transfer
 	CString strMessage, strFilename;
 	CStringArray arrNetworkPath;
-	m_ctrlFolder.GetWindowText(m_strRootFolder);
+	m_ctrlFolder.GetWindowText(m_strRootFolder); // read the current root folder from the UI
 	if (m_strRootFolder.IsEmpty())
 	{
-		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK); // cannot proceed without a root folder
 	}
 	else
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
-			if (!m_hashNetwork-&gt;IsValidCode(m_strInputCode))
+			ASSERT(m_hashNetwork != nullptr);
+			if (!m_hashNetwork-&gt;IsValidCode(m_strInputCode)) // reject codes containing illegal characters
 			{
 				m_ctrlMessage.SetWindowText(INVALID_CHARS);
 			}
 			else
 			{
-				CString strFilePath; // relative path to file 
-				int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strInputCode);
-				if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath))
+				CString strFilePath; // relative path to file
+				int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strInputCode); // convert the alphanumeric code back to an integer key
+				if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath)) // look up the file&#39;s relative path in the index
 				{
-					m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+					m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS); // code not found in the index
 				}
 				else
 				{
-					strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
-					m_ctrlProgress.SetRange32(0, PROGRESS_RANGE);
-					m_ctrlProgress.SetPos(0);
-					m_ctrlProgress.ShowWindow(SW_SHOW);
+					strFilename.Format(_T(&quot;%s%s&quot;), static_cast&lt;LPCWSTR&gt;(m_strRootFolder), static_cast&lt;LPCWSTR&gt;(strFilePath)); // build the absolute source path
+					m_ctrlProgress.SetRange32(0, PROGRESS_RANGE); // configure the progress bar range
+					m_ctrlProgress.SetPos(0);                     // reset the indicator to the start
+					m_ctrlProgress.ShowWindow(SW_SHOW);           // make the progress bar visible
 					if (!CopyFileEx(strFilename, m_strOutputFile, m_funcProgress, &amp;m_ctrlProgress, &amp;bCancelOperation, 0 ))
 					{
+						// copy failed: hide the bar, then diagnose whether the file is missing or another OS error occurred
 						m_ctrlProgress.ShowWindow(SW_HIDE);
 						const DWORD dwLastError = GetLastError();
 						if (!m_hashNetwork-&gt;FileExists(strFilename))
-							m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+							m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS); // file in index but not on disk
 						else
-							m_ctrlMessage.SetWindowText(m_hashNetwork-&gt;FormatLastError(dwLastError));
+							m_ctrlMessage.SetWindowText(m_hashNetwork-&gt;FormatLastError(dwLastError)); // other Win32 error
 					}
 					else
 					{
-						strMessage.Format(_T(&quot;Done reading file %s [%s] ...&quot;), strFilename, m_strInputCode);
-						m_ctrlMessage.SetWindowText(strMessage);
-						m_ctrlProgress.SetPos(PROGRESS_RANGE-1);
-						m_ctrlProgress.UpdateWindow();
-						Sleep(SLEEP_INTERVAL);
-						m_ctrlProgress.ShowWindow(SW_HIDE);
+						strMessage.Format(_T(&quot;Done reading file %s [%s] ...&quot;), static_cast&lt;LPCWSTR&gt;(strFilename), static_cast&lt;LPCWSTR&gt;(m_strInputCode));
+						m_ctrlMessage.SetWindowText(strMessage);     // show success message with source path and code
+						m_ctrlProgress.SetPos(PROGRESS_RANGE-1);     // advance bar to near-complete
+						m_ctrlProgress.UpdateWindow();               // force an immediate repaint
+						Sleep(SLEEP_INTERVAL);                       // brief pause so the user can see the completed bar
+						m_ctrlProgress.ShowWindow(SW_HIDE);          // hide the progress bar
 					}
 				}
 			}
@@ -431,50 +574,51 @@ void CSiatelHomeworkDlg::OnBnClickedDownload()
 
 void CSiatelHomeworkDlg::OnBnClickedDelete()
 {
-	int nLevel = 0;
+	int nLevel = 0;                // receives the tree depth from SearchItem (required by the API, not used here)
 	CString strMessage, strFilename;
 	CStringArray arrNetworkPath;
-	m_ctrlFolder.GetWindowText(m_strRootFolder);
+	m_ctrlFolder.GetWindowText(m_strRootFolder); // read the current root folder from the UI
 	if (m_strRootFolder.IsEmpty())
 	{
-		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK);
+		MessageBox(EMPTY_ROOT_FOLDER, _T(&quot;Error&quot;), MB_OK); // cannot proceed without a root folder
 	}
 	else
 	{
 		if (USE_HASH_METHOD)
 		{
-			ASSERT(m_hashNetwork != NULL);
-			if (!m_hashNetwork-&gt;IsValidCode(m_strDeleteCode))
+			ASSERT(m_hashNetwork != nullptr);
+			if (!m_hashNetwork-&gt;IsValidCode(m_strDeleteCode)) // reject codes containing illegal characters
 			{
 				m_ctrlMessage.SetWindowText(INVALID_CHARS);
 			}
 			else
 			{
-				CString strFilePath;
-				int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strDeleteCode);
-				if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath))
+				CString strFilePath; // relative path resolved from the index
+				int nFileCode = m_hashNetwork-&gt;DecodeNetworkID(m_strDeleteCode); // convert the alphanumeric code back to an integer key
+				if (!m_hashNetwork-&gt;SearchItem(nFileCode, nLevel, strFilePath))  // look up the file in the index
 				{
-					m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+					m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS); // code not found in the index
 				}
 				else
 				{
-					strFilename.Format(_T(&quot;%s%s&quot;), m_strRootFolder, strFilePath);
-					if (!m_hashNetwork-&gt;FileExists(strFilename))
+					strFilename.Format(_T(&quot;%s%s&quot;), static_cast&lt;LPCWSTR&gt;(m_strRootFolder), static_cast&lt;LPCWSTR&gt;(strFilePath)); // build the absolute path
+					if (!m_hashNetwork-&gt;FileExists(strFilename)) // confirm the file is actually present on disk
 					{
-						m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS);
+						m_ctrlMessage.SetWindowText(FILE_DOES_NOT_EXISTS); // index entry exists but the file is missing
 					}
 					else
 					{
-						if (!DeleteFile(strFilename))
+						if (!DeleteFile(strFilename)) // attempt the Win32 file deletion
 						{
+							// deletion failed (e.g. file locked); report the OS error
 							const DWORD dwLastError = GetLastError();
 							m_ctrlMessage.SetWindowText(m_hashNetwork-&gt;FormatLastError(dwLastError));
 						}
 						else
 						{
-							VERIFY(m_hashNetwork-&gt;DeleteItem(nFileCode));
-							strMessage.Format(_T(&quot;File %s [%s] has been deleted ...&quot;), strFilename, m_strDeleteCode);
-							m_ctrlMessage.SetWindowText(strMessage);
+							VERIFY(m_hashNetwork-&gt;DeleteItem(nFileCode)); // remove the entry from the hash index
+							strMessage.Format(_T(&quot;File %s [%s] has been deleted ...&quot;), static_cast&lt;LPCWSTR&gt;(strFilename), static_cast&lt;LPCWSTR&gt;(m_strDeleteCode));
+							m_ctrlMessage.SetWindowText(strMessage);      // confirm the deletion to the user
 						}
 					}
 				}
@@ -486,43 +630,23 @@ void CSiatelHomeworkDlg::OnBnClickedDelete()
 	}
 }</pre>
 
-						<h2><a name="cited"></a>Works Cited</h2>
+					<h2>Roadmap</h2>
+					<p>The work below is still open. It follows from the unfinished parts of the code, and no release dates are set.</p>
+					<ul>
+						<li><strong>Finish the B-tree index.</strong> <code>CNetworkTree</code> can only create a tree and search it: <code>ImportData</code> and <code>ExportData</code> are empty placeholders, no operation deletes a single key, and <code>InsertNode</code>, <code>UpdateNode</code> and <code>InsertEmpty</code> exist only in a comment in <em>SiatelHomeworkExt.h</em> (&quot;methods for future use&quot;). Once the missing operations are written, the empty <code>USE B-TREE</code> branches (upload, download, delete and file list) can be filled in and <code>USE_HASH_METHOD</code> can be set to <code>FALSE</code>.</li>
+						<li><strong>Use the intended folder size.</strong> Raise <code>BALANCED_TREE_ORDER</code> from 4 to 1000, as the comment in <em>SiatelHomeworkExt.h</em> asks. The path of a file depends on this value, so stores created with the old one would have to be migrated; otherwise a new upload could end up on the path of an older file.</li>
+						<li><strong>Make key generation robust.</strong> <code>GetNextID</code> relies on <code>rand()</code>, which returns 15-bit values, so only 32,768 different keys can ever be drawn, although the hash tables are sized for <code>MAX_RANDOM_DATA</code> (65,537) entries. <code>GenerateID</code> keeps drawing until it finds a free key, so it would never return once all of them are used. A wider random source and a &quot;store is full&quot; message would fix both.</li>
+						<li><strong>Add automated tests.</strong> There is no test project yet. Good first candidates are the code and folder functions of <code>CNetworkBase</code> (<code>EncodeNetworkID</code>, <code>DecodeNetworkID</code>, <code>IsValidCode</code>, <code>GetFilePath</code>), the import and export of <em>filelist.txt</em>, and the way a deleted slot is refilled with the last file.</li>
+						<li><strong>Clarify what <code>nLevel</code> means.</strong> In <code>CNetworkHash</code> it is the slot of a file, not a depth in a tree, but the names and some comments still say &quot;level&quot; and &quot;tree depth&quot;. Renaming it (for example to <code>nSlot</code>) and fixing the comments would match what the code does.</li>
+					</ul>
 
-						<ul>
-							<li>Bayer, R., M. Schkolnick. Concurrency of Operations on B-Trees. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 216-226, 1994.</li>
-							<li>Cormen, Thomas H., Charles E. Leiserson, Ronald L. Rivest, <i>Introduction to Algorithms</i>, MIT Press, Massachusetts: 1998.</li>
-							<li>Gray, J. N., R. A. Lorie, G. R. Putzolu, I. L. Traiger. Granularity of Locks and Degrees of Consistency in a Shared Data Base. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 181-208, 1994.</li>
-							<li>Kung, H. T., John T. Robinson. On Optimistic Methods of Concurrency Control. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 209-215, 1994.</li>
-						</ul>
-
-						<h2>History</h2>
-
-						<ul>
-							<li>14<sup>th </sup>August, 2014 - Version 1.03 - Initial release</li>
-							<li>1<sup>st</sup> April, 2023 - Same version - Moved source code to GitHub</li>
-							<li>Version 1.04 (June 25<sup>th</sup>, 2023):
-							<ul>
-								<li>Updated <strong>About</strong> dialog with GPLv3 notice;</li>
-								<li>Replaced old <code>CHyperlinkStatic</code> class with PJ Naughter&#39;s <code>CHLinkCtrl</code> library.</li>
-							</ul>
-							</li>
-							<li>Version 1.05 (October 20<sup>th</sup>, 2023):
-								<ul>
-									<li>Updated the <strong>About</strong> dialog (email &amp; website).</li>
-									<li>Added social media links: Twitter, LinkedIn, Facebook, and Instagram.</li>
-									<li>Added shortcuts to GitHub repository&#39;s Issues, Discussions, and Wiki.</li>
-								</ul>
-							</li>
-							<li>Version 1.06 (January 20<sup>th</sup>, 2024):
-								<ul>
-									<li>Added <em>ReleaseNotes.html</em> and <em>SoftwareContextRegister.html</em> to GitHub repo;</li>
-									<li>Replaced old <code>CFileDialogST</code> class with Armen Hakobyan&#39;s <code>CFolderDialog</code> library;</li>
-									<li>Replaced <code>NULL</code> throughout the codebase with <code>nullptr</code>.<br />
-									Replaced <code>BOOL</code> throughout the codebase with <code>bool</code>.<br />
-									This means that the minimum requirement for the application is now Microsoft Visual C++ 2010.</li>
-								</ul>
-							</li>
-						</ul>
+					<h2><a name="cited"></a>Works Cited</h2>
+					<ul>
+						<li>Bayer, R., M. Schkolnick. Concurrency of Operations on B-Trees. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 216-226, 1994.</li>
+						<li>Cormen, Thomas H., Charles E. Leiserson, Ronald L. Rivest, <i>Introduction to Algorithms</i>, MIT Press, Massachusetts: 1998.</li>
+						<li>Gray, J. N., R. A. Lorie, G. R. Putzolu, I. L. Traiger. Granularity of Locks and Degrees of Consistency in a Shared Data Base. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 181-208, 1994.</li>
+						<li>Kung, H. T., John T. Robinson. On Optimistic Methods of Concurrency Control. In <i>Readings in Database Systems</i> (ed. Michael Stonebraker), pages 209-215, 1994.</li>
+					</ul>
 				</div>
 			</div>
 		</div>
