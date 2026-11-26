@@ -630,13 +630,73 @@ void CSiatelHomeworkDlg::OnBnClickedDelete()
 	}
 }</pre>
 
+						<h2>Unit Tests</h2>
+
+						<p>The <em>UnitTests</em> project is part of the solution and uses the Microsoft Native Unit Test Framework. The application is an executable, so the test DLL compiles <em>SiatelHomeworkExt.cpp</em>, <em>VersionInfo.cpp</em> and <em>stdafx.cpp</em> itself. There is one test file for each class under test, plus one for the workflows of the main dialog:</p>
+
+						<ul>
+							<li><em>CNetworkBaseTests.cpp</em> - the codes (<code>EncodeNetworkID</code>, <code>DecodeNetworkID</code>, <code>IsValidCode</code>), <code>GetNextID</code>, the path of a slot (<code>GetFilePath</code>) and <code>CreateNetworkPath</code>;</li>
+							<li><em>CNetworkHashTests.cpp</em> - the index: <code>InsertItem</code>, <code>SearchItem</code>, <code>UpdateItem</code>, <code>DeleteItem</code> (including the move of the last file into the freed slot), <code>GenerateID</code> and the import and export of <em>filelist.txt</em>;</li>
+							<li><em>CNetworkTreeTests.cpp</em> - <code>CNetworkTree</code>: <code>CreateTree</code>, <code>SearchNode</code>, <code>DeleteTree</code> and <code>GenerateID</code>;</li>
+							<li><em>CVersionInfoTests.cpp</em> - <code>CVersionInfo</code>, which reads the version resource that the About dialog displays;</li>
+							<li><em>CNetworkWorkflowTests.cpp</em> - the Browse, Upload, Download and Delete steps of the main dialog, and closing and restarting the application;</li>
+							<li><em>TestHelpers.h</em>, <em>TestHelpers.cpp</em> and <em>TestHelperTests.cpp</em> - the shared fixtures, the guards described below and the tests of those guards.</li>
+						</ul>
+
+						<p>Tests are named after the function, the situation and the expected result. For example, the slot 27 is 123 in base 4, so its file is stored in the folder <code>0001</code>, in the subfolder <code>0002</code>, with the name <code>0003</code>:</p>
+
+						<pre lang="C++">
+TEST_METHOD(GetFilePath_KeyWithNestedFolders_ListsFoldersFromTheTopDown)
+{
+	CNetworkBase network;
+	CStringArray arrFolders;
+
+	// 27 is 123 in base 4: folder 0001, folder 0002, file 0003.
+	const CString strPath = network.GetFilePath(27, arrFolders);
+
+	Assert::AreEqual(CString(_T(&quot;0001\\0002\\0003.dat&quot;)), strPath);
+	Assert::AreEqual(2, static_cast&lt;int&gt;(arrFolders.GetCount()));
+	Assert::AreEqual(CString(_T(&quot;0001&quot;)), arrFolders.GetAt(0));
+	Assert::AreEqual(CString(_T(&quot;0002&quot;)), arrFolders.GetAt(1));
+}</pre>
+
+						<p>The main dialog cannot be created in a test, so the workflow tests use a helper class, <code>CNetworkSession</code>, which makes the calls that the Browse, Upload, Download and Delete handlers make, in the same order, on real folders that are created under <em>%TEMP%</em> and removed when the test ends. Its <code>VerifyAll</code> method checks that the index, the disk and a record of what was uploaded agree: every key is listed once, the slots are a permutation of 0..size-1, every file is where <code>GetFilePath</code> says and holds its own content, no other data file exists, and every file can be downloaded. For example, when the first of three files is deleted, the last one must take its slot (<code>ExpectLevel</code> checks the slot of a code and the path that belongs to it):</p>
+
+						<pre lang="C++">
+TEST_METHOD(Delete_FirstOfThree_MovesTheLastFileIntoItsSlot)
+{
+	CNetworkSession session;
+	const CString strFirst = session.StoreText(&quot;first&quot;);
+	const CString strSecond = session.StoreText(&quot;second&quot;);
+	const CString strThird = session.StoreText(&quot;third&quot;);
+
+	session.RemoveFile(strFirst);
+
+	ExpectLevel(session, strThird, 0);
+	ExpectLevel(session, strSecond, 1);
+	Assert::AreEqual(std::string(&quot;third&quot;), TestHelpers::ReadFile(session.GetRootFolder() + _T(&quot;0000.dat&quot;)));
+	Assert::IsFalse(TestHelpers::PathExists(session.GetRootFolder() + _T(&quot;0002.dat&quot;)));
+	session.VerifyAll();
+}</pre>
+
+						<p>A message box or a failed assertion that nobody answers would block an unattended run forever, so the tests guard against both. <code>CMessageBoxMonitor</code> closes every message box that the code under test shows (<code>CNetworkHash::DeleteItem</code> shows one when it cannot move a file), records its caption and text, and fails the running test, unless the test expects the message box, reads the record and then calls <code>CMessageBoxMonitor::Clear()</code>. In Debug builds, <code>CAssertionMonitor</code> does the same for a failed MFC or ATL assertion. A test class turns the guards on with the <code>GUARD_AGAINST_UNEXPECTED_POPUPS()</code> macro, which sets them up before every test and checks them after it. The guards have tests of their own; those of <code>CAssertionMonitor</code> exist only in Debug builds, so a Release run lists fewer tests.</p>
+
+						<p>The expected paths in the tests are written for <code>BALANCED_TREE_ORDER</code> = 4, so they must be updated when the value is raised to 1000; a <code>static_assert</code> in <em>CNetworkTreeTests.cpp</em> stops the build of the tests as a reminder. The dialogs and the <code>CHLinkCtrl</code> control are not covered.</p>
+
+						<p>In Visual Studio, open <strong>Test Explorer</strong> and click <strong>Run All Tests</strong>. From a <strong>Developer Command Prompt for VS</strong>, build and run the tests as follows. For another configuration, change the <code>Configuration</code> and <code>Platform</code> values and the path of the DLL; the 32-bit tests run with <code>/Platform:x86</code>.</p>
+
+						<pre>
+msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64
+vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64</pre>
+
 					<h2>Roadmap</h2>
 					<p>The work below is still open. It follows from the unfinished parts of the code, and no release dates are set.</p>
 					<ul>
 						<li><strong>Finish the B-tree index.</strong> <code>CNetworkTree</code> can only create a tree and search it: <code>ImportData</code> and <code>ExportData</code> are empty placeholders, no operation deletes a single key, and <code>InsertNode</code>, <code>UpdateNode</code> and <code>InsertEmpty</code> exist only in a comment in <em>SiatelHomeworkExt.h</em> (&quot;methods for future use&quot;). Once the missing operations are written, the empty <code>USE B-TREE</code> branches (upload, download, delete and file list) can be filled in and <code>USE_HASH_METHOD</code> can be set to <code>FALSE</code>.</li>
 						<li><strong>Use the intended folder size.</strong> Raise <code>BALANCED_TREE_ORDER</code> from 4 to 1000, as the comment in <em>SiatelHomeworkExt.h</em> asks. The path of a file depends on this value, so stores created with the old one would have to be migrated; otherwise a new upload could end up on the path of an older file.</li>
 						<li><strong>Make key generation robust.</strong> <code>GetNextID</code> relies on <code>rand()</code>, which returns 15-bit values, so only 32,768 different keys can ever be drawn, although the hash tables are sized for <code>MAX_RANDOM_DATA</code> (65,537) entries. <code>GenerateID</code> keeps drawing until it finds a free key, so it would never return once all of them are used. A wider random source and a &quot;store is full&quot; message would fix both.</li>
-						<li><strong>Add automated tests.</strong> There is no test project yet. Good first candidates are the code and folder functions of <code>CNetworkBase</code> (<code>EncodeNetworkID</code>, <code>DecodeNetworkID</code>, <code>IsValidCode</code>, <code>GetFilePath</code>), the import and export of <em>filelist.txt</em>, and the way a deleted slot is refilled with the last file.</li>
+						<li><strong>Harden the file index.</strong> Writing the tests showed some weak spots. The index is saved only when the application closes, so choosing another folder with <strong>Browse</strong> drops the changes made in the previous one. When <code>DeleteItem</code> cannot move the last file into the freed slot, it shows the system error but still removes the entry, so the index and the slots no longer match, and an entry whose file is missing on disk cannot be deleted from the dialog. In Debug builds, <code>ImportData</code> fails an <code>ASSERT</code> on a line that is not made of a key, a slot and a path.</li>
+						<li><strong>Extend the automated tests.</strong> <em>UnitTests</em> covers <code>CNetworkBase</code>, <code>CNetworkHash</code>, <code>CNetworkTree</code> and <code>CVersionInfo</code>. The dialogs and the <code>CHLinkCtrl</code> control are not covered yet, and the B-tree operations that are still to be written will need tests of their own. The tests assume <code>BALANCED_TREE_ORDER</code> is 4, so their expected paths must be updated when it is raised to 1000; a <code>static_assert</code> in <em>CNetworkTreeTests.cpp</em> fails the build of the tests as a reminder.</li>
 						<li><strong>Clarify what <code>nLevel</code> means.</strong> In <code>CNetworkHash</code> it is the slot of a file, not a depth in a tree, but the names and some comments still say &quot;level&quot; and &quot;tree depth&quot;. Renaming it (for example to <code>nSlot</code>) and fixing the comments would match what the code does.</li>
 					</ul>
 

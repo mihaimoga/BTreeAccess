@@ -47,7 +47,7 @@ To build this project, you will need:
    msbuild SiatelHomework.vcxproj /p:Configuration=Debug /p:Platform=x64
    ```
 
-`SiatelHomework.exe` is created in `x64\Debug\` or `x64\Release\` for x64, and in `Debug\` or `Release\` for Win32. MFC is linked statically. Debug builds use warning level 4, and code analysis runs on every build.
+`SiatelHomework.exe` is created in `x64\Debug\` or `x64\Release\` for x64, and in `Debug\` or `Release\` for Win32. MFC is linked statically. Debug builds use warning level 4, and code analysis runs on every build. The solution also contains the `UnitTests` project, so building the solution builds the tests as well (see [Running the Unit Tests](#running-the-unit-tests)); the `msbuild` command above builds only the application.
 
 ### Running
 
@@ -59,7 +59,33 @@ Start `SiatelHomework.exe` (or press F5 in Visual Studio), then:
 4. To delete, type the code in the *Delete* group and click **Delete**.
 5. Click **File List** to see all the stored files.
 
-There is no automated test suite, so validate changes by running the application.
+The unit tests do not cover the dialogs, so validate changes to the user interface by running the application.
+
+### Running the Unit Tests
+
+The `UnitTests` project is part of `SiatelHomework.sln`. It uses the Microsoft Native Unit Test Framework and has one test file for each class under test, plus one for the workflows of the main dialog:
+
+- `CNetworkBaseTests.cpp`: the codes (`EncodeNetworkID`, `DecodeNetworkID`, `IsValidCode`), `GetNextID`, the path of a slot (`GetFilePath`) and `CreateNetworkPath`.
+- `CNetworkHashTests.cpp`: the index - `InsertItem`, `SearchItem`, `UpdateItem`, `DeleteItem` (including the move of the last file into the freed slot), `GenerateID`, and the import and export of `filelist.txt`.
+- `CNetworkTreeTests.cpp`: `CNetworkTree` - `CreateTree`, `SearchNode`, `DeleteTree`, `GenerateID` and the placeholder `ImportData` and `ExportData`.
+- `CVersionInfoTests.cpp`: `CVersionInfo`, which reads the version resource that the **About** dialog displays.
+- `CNetworkWorkflowTests.cpp`: the Browse, Upload, Download and Delete steps of the main dialog, and closing and restarting the application. The dialog cannot be created in a test, so these tests make the calls that its handlers make, in the same order and on real folders, and check after every step that the index and the disk agree.
+- `TestHelpers.*` and `TestHelperTests.cpp`: the shared fixtures, the guards described below, and the tests of those guards.
+
+The dialogs themselves and the `CHLinkCtrl` control are not covered.
+
+In Visual Studio, open **Test Explorer** and click **Run All Tests**. From a **Developer Command Prompt for VS**, run:
+
+```
+msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64
+vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64
+```
+
+For another configuration, change the `Configuration` and `Platform` values and the path of the DLL; the `Win32` tests are in `UnitTests\Win32\<Configuration>\UnitTests.dll` and run with `/Platform:x86`.
+
+The tests create their files in temporary folders and remove them when they finish. A message box shown by the code under test is closed at once, so an unattended run cannot hang, and it fails the running test unless the test expects it. In Debug builds a failed MFC or ATL assertion in the code under test fails the running test too; the tests of that guard exist only in Debug builds, so a Release run lists fewer tests.
+
+The expected paths in the tests are written for `BALANCED_TREE_ORDER` = 4. A `static_assert` in `CNetworkTreeTests.cpp` stops the build of the tests when the value is changed, as a reminder to update them.
 
 ## File Structure
 
@@ -72,6 +98,7 @@ There is no automated test suite, so validate changes by running the application
 - `HLinkCtrl.*`, `VersionInfo.*`: hyperlink control and version information classes by PJ Naughter
 - `resource.h`, `SiatelHomework.rc`, `res/`: resource identifiers, dialogs and icons
 - `stdafx.h` / `.cpp`, `targetver.h`: precompiled header and target Windows platform
+- `UnitTests/`: unit-test project (`UnitTests.vcxproj`) for the storage logic and the version-information classes
 - `BTreeAccess.html`: the article on B-trees and on this implementation
 - `ReleaseNotes.html`: version history
 - `SoftwareContentRegister.html`: third-party components and their licenses
@@ -84,12 +111,13 @@ The work below is still open. It follows from the unfinished parts of the code, 
 - **Finish the B-tree index.** `CNetworkTree` can only create a tree and search it: `ImportData` and `ExportData` are empty placeholders, no operation deletes a single key, and `InsertNode`, `UpdateNode` and `InsertEmpty` exist only in a comment in `SiatelHomeworkExt.h` ("methods for future use"). Once the missing operations are written, the empty `USE B-TREE` branches (upload, download, delete and file list) can be filled in and `USE_HASH_METHOD` can be set to `FALSE`.
 - **Use the intended folder size.** Raise `BALANCED_TREE_ORDER` from 4 to 1000, as the comment in `SiatelHomeworkExt.h` asks. The path of a file depends on this value, so stores created with the old one would have to be migrated; otherwise a new upload could end up on the path of an older file.
 - **Make key generation robust.** `GetNextID` relies on `rand()`, which returns 15-bit values, so only 32,768 different keys can ever be drawn, although the hash tables are sized for `MAX_RANDOM_DATA` (65,537) entries. `GenerateID` keeps drawing until it finds a free key, so it would never return once all of them are used. A wider random source and a "store is full" message would fix both.
-- **Add automated tests.** There is no test project yet. Good first candidates are the code and folder functions of `CNetworkBase` (`EncodeNetworkID`, `DecodeNetworkID`, `IsValidCode`, `GetFilePath`), the import and export of `filelist.txt`, and the way a deleted slot is refilled with the last file.
+- **Harden the file index.** Writing the tests showed some weak spots. The index is saved only when the application closes, so choosing another folder with **Browse** drops the changes made in the previous one. When `DeleteItem` cannot move the last file into the freed slot, it shows the system error but still removes the entry, so the index and the slots no longer match, and an entry whose file is missing on disk cannot be deleted from the dialog. In Debug builds, `ImportData` fails an `ASSERT` on a line that is not made of a key, a slot and a path.
+- **Extend the automated tests.** `UnitTests` covers `CNetworkBase`, `CNetworkHash`, `CNetworkTree` and `CVersionInfo`. The dialogs and the `CHLinkCtrl` control are not covered yet, and the B-tree operations that are still to be written will need tests of their own. The tests assume `BALANCED_TREE_ORDER` is 4, so their expected paths must be updated when it is raised to 1000; a `static_assert` in `CNetworkTreeTests.cpp` fails the build of the tests as a reminder.
 - **Clarify what `nLevel` means.** In `CNetworkHash` it is the slot of a file, not a depth in a tree, but the names and some comments still say "level" and "tree depth". Renaming it (for example to `nSlot`) and fixing the comments would match what the code does.
 
 ## Contributing
 
-Bug reports and pull requests are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). The repository conventions (formatting, build and validation) are summarized in [AGENTS.md](AGENTS.md).
+Bug reports and pull requests are welcome; please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This project follows the [Code of Conduct](CODE_OF_CONDUCT.md). Please report security vulnerabilities privately, as described in [SECURITY.md](SECURITY.md). The repository conventions (formatting, build, unit tests and validation) are summarized in [AGENTS.md](AGENTS.md).
 
 ## License
 

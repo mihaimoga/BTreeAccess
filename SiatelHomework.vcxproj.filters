@@ -90,10 +90,14 @@
     <None Include="SoftwareContentRegister.html" />
     <None Include="README.md" />
     <None Include="AGENTS.md" />
+    <None Include="BTreeAccess.html" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="SiatelHomework.rc">
       <Filter>Resource Files</Filter>
     </ResourceCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="BTreeAccess.png" />
   </ItemGroup>
 </Project>
