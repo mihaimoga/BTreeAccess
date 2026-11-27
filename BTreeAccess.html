@@ -679,14 +679,20 @@ TEST_METHOD(Delete_FirstOfThree_MovesTheLastFileIntoItsSlot)
 	session.VerifyAll();
 }</pre>
 
-						<p>A message box or a failed assertion that nobody answers would block an unattended run forever, so the tests guard against both. <code>CMessageBoxMonitor</code> closes every message box that the code under test shows (<code>CNetworkHash::DeleteItem</code> shows one when it cannot move a file), records its caption and text, and fails the running test, unless the test expects the message box, reads the record and then calls <code>CMessageBoxMonitor::Clear()</code>. In Debug builds, <code>CAssertionMonitor</code> does the same for a failed MFC or ATL assertion. A test class turns the guards on with the <code>GUARD_AGAINST_UNEXPECTED_POPUPS()</code> macro, which sets them up before every test and checks them after it. The guards have tests of their own; those of <code>CAssertionMonitor</code> exist only in Debug builds, so a Release run lists fewer tests.</p>
+						<p>A message box or a failed assertion that nobody answers would block an unattended run, such as the build, forever, so the tests guard against both. <code>CMessageBoxMonitor</code> closes every message box that the code under test shows (<code>CNetworkHash::DeleteItem</code> shows one when it cannot move a file), records its caption and text, and fails the running test, unless the test expects the message box, reads the record and then calls <code>CMessageBoxMonitor::Clear()</code>. In Debug builds, <code>CAssertionMonitor</code> does the same for a failed MFC or ATL assertion. A test class turns the guards on with the <code>GUARD_AGAINST_UNEXPECTED_POPUPS()</code> macro, which sets them up before every test and checks them after it. The guards have tests of their own; those of <code>CAssertionMonitor</code> exist only in Debug builds, so a Release run lists fewer tests.</p>
 
 						<p>The expected paths in the tests are written for <code>BALANCED_TREE_ORDER</code> = 4, so they must be updated when the value is raised to 1000; a <code>static_assert</code> in <em>CNetworkTreeTests.cpp</em> stops the build of the tests as a reminder. The dialogs and the <code>CHLinkCtrl</code> control are not covered.</p>
 
-						<p>In Visual Studio, open <strong>Test Explorer</strong> and click <strong>Run All Tests</strong>. From a <strong>Developer Command Prompt for VS</strong>, build and run the tests as follows. For another configuration, change the <code>Configuration</code> and <code>Platform</code> values and the path of the DLL; the 32-bit tests run with <code>/Platform:x86</code>.</p>
+						<p>The tests run during every build of the project. A post-build event, defined for every configuration of <em>UnitTests.vcxproj</em>, runs <code>vstest.console.exe</code> from the Visual Studio installation (<code>$(VSInstallDir)Common7\IDE\Extensions\TestPlatform\</code>) on the DLL that was just built, even when nothing was recompiled. The results appear in the build output, and a failing test fails the build. The solution builds <em>UnitTests</em> before the application, so a solution build runs the tests once and does not build the application when one of them fails.</p>
+
+						<p>You can also run the tests in Visual Studio: open <strong>Test Explorer</strong> and click <strong>Run All Tests</strong>. From a <strong>Developer Command Prompt for VS</strong>, build the tests, which runs them:</p>
 
 						<pre>
-msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64
+msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64</pre>
+
+						<p>To run the tests that are already built again, without building, call <code>vstest.console.exe</code> on the DLL. For another configuration, change the <code>Configuration</code> and <code>Platform</code> values and the path of the DLL; the 32-bit tests run with <code>/Platform:x86</code>.</p>
+
+						<pre>
 vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64</pre>
 
 					<h2>Roadmap</h2>

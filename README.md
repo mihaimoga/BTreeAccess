@@ -47,7 +47,7 @@ To build this project, you will need:
    msbuild SiatelHomework.vcxproj /p:Configuration=Debug /p:Platform=x64
    ```
 
-`SiatelHomework.exe` is created in `x64\Debug\` or `x64\Release\` for x64, and in `Debug\` or `Release\` for Win32. MFC is linked statically. Debug builds use warning level 4, and code analysis runs on every build. The solution also contains the `UnitTests` project, so building the solution builds the tests as well (see [Running the Unit Tests](#running-the-unit-tests)); the `msbuild` command above builds only the application.
+`SiatelHomework.exe` is created in `x64\Debug\` or `x64\Release\` for x64, and in `Debug\` or `Release\` for Win32. MFC is linked statically. Debug builds use warning level 4, and code analysis runs on every build. The solution also contains the `UnitTests` project, which is built before the application and runs its tests after every build, so a failing test fails the solution build and the application is not built (see [Running the Unit Tests](#running-the-unit-tests)); the `msbuild` command above builds only the application, without the tests.
 
 ### Running
 
@@ -74,16 +74,23 @@ The `UnitTests` project is part of `SiatelHomework.sln`. It uses the Microsoft N
 
 The dialogs themselves and the `CHLinkCtrl` control are not covered.
 
-In Visual Studio, open **Test Explorer** and click **Run All Tests**. From a **Developer Command Prompt for VS**, run:
+The tests run during every build of the project. A post-build event, defined for every configuration of `UnitTests.vcxproj`, runs `vstest.console.exe` from the Visual Studio installation (`$(VSInstallDir)Common7\IDE\Extensions\TestPlatform\`) on the `UnitTests.dll` that was just built, even when nothing was recompiled. The results appear in the build output, and a failing test fails the build. The solution builds `UnitTests` before the application, so a solution build runs the tests once and does not build the application when one of them fails.
+
+You can also run the tests in Visual Studio: open **Test Explorer** and click **Run All Tests**. From a **Developer Command Prompt for VS**, build the tests, which runs them:
 
 ```
 msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64
+```
+
+To run the tests that are already built again, without building, call `vstest.console.exe`:
+
+```
 vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64
 ```
 
 For another configuration, change the `Configuration` and `Platform` values and the path of the DLL; the `Win32` tests are in `UnitTests\Win32\<Configuration>\UnitTests.dll` and run with `/Platform:x86`.
 
-The tests create their files in temporary folders and remove them when they finish. A message box shown by the code under test is closed at once, so an unattended run cannot hang, and it fails the running test unless the test expects it. In Debug builds a failed MFC or ATL assertion in the code under test fails the running test too; the tests of that guard exist only in Debug builds, so a Release run lists fewer tests.
+The tests create their files in temporary folders and remove them when they finish. A message box shown by the code under test is closed at once, so an unattended run, such as the build, cannot hang, and it fails the running test unless the test expects it. In Debug builds a failed MFC or ATL assertion in the code under test fails the running test too; the tests of that guard exist only in Debug builds, so a Release run lists fewer tests.
 
 The expected paths in the tests are written for `BALANCED_TREE_ORDER` = 4. A `static_assert` in `CNetworkTreeTests.cpp` stops the build of the tests when the value is changed, as a reminder to update them.
 
@@ -98,7 +105,7 @@ The expected paths in the tests are written for `BALANCED_TREE_ORDER` = 4. A `st
 - `HLinkCtrl.*`, `VersionInfo.*`: hyperlink control and version information classes by PJ Naughter
 - `resource.h`, `SiatelHomework.rc`, `res/`: resource identifiers, dialogs and icons
 - `stdafx.h` / `.cpp`, `targetver.h`: precompiled header and target Windows platform
-- `UnitTests/`: unit-test project (`UnitTests.vcxproj`) for the storage logic and the version-information classes
+- `UnitTests/`: unit-test project (`UnitTests.vcxproj`) for the storage logic and the version-information classes; its post-build event runs the tests
 - `BTreeAccess.html`: the article on B-trees and on this implementation
 - `ReleaseNotes.html`: version history
 - `SoftwareContentRegister.html`: third-party components and their licenses

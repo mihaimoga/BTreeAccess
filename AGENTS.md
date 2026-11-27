@@ -10,13 +10,14 @@ This repository contains **BTreeAccess**, a native Windows desktop application b
 - The project supports `Debug` and `Release` configurations for `Win32` and `x64`.
 - Use the Visual Studio project build, or run:
   `msbuild SiatelHomework.vcxproj /p:Configuration=Debug /p:Platform=x64`
+  This builds only the application; it neither builds nor runs the unit tests. Build `SiatelHomework.sln` to build both.
 - Build the affected configuration after changes. The project enables code analysis and uses warning level 4 in Debug builds.
-- Unit tests are in the `UnitTests` project (`UnitTests\UnitTests.vcxproj`, part of `SiatelHomework.sln`), which uses the Microsoft Native Unit Test Framework. Run them from Test Explorer, or build and run:
+- Unit tests are in the `UnitTests` project (`UnitTests\UnitTests.vcxproj`, part of `SiatelHomework.sln`), which uses the Microsoft Native Unit Test Framework. Run them from Test Explorer, or build the project, which runs them:
   ```
   msbuild UnitTests\UnitTests.vcxproj /p:Configuration=Debug /p:Platform=x64
-  vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64
   ```
-  For `Win32`, the DLL is in `UnitTests\Win32\<Configuration>\` and runs with `/Platform:x86`.
+- A post-build event of `UnitTests.vcxproj`, defined for every configuration, runs `"$(VSInstallDir)Common7\IDE\Extensions\TestPlatform\vstest.console.exe" $(Platform)\$(Configuration)\UnitTests.dll`. It runs after every build of the project, even when nothing was recompiled, and a failing test fails the build; the build output names the failing test and its message. The solution builds `UnitTests` before the application, so a solution build runs the tests once and does not build the application when a test fails.
+- To run the tests that are already built again, without building, run `vstest.console.exe UnitTests\x64\Debug\UnitTests.dll /Platform:x64`. For `Win32`, the DLL is in `UnitTests\Win32\<Configuration>\` and runs with `/Platform:x86`.
 - Run the unit tests after changing `SiatelHomeworkExt.*` or `VersionInfo.*`, and follow the "Unit Tests" section below when editing them. They do not cover the MFC dialogs or `CHLinkCtrl`, so validate changes to those by running the corresponding dialog or workflow.
 
 ## Source Layout
@@ -41,6 +42,7 @@ This repository contains **BTreeAccess**, a native Windows desktop application b
 ## Unit Tests
 
 - Keep the tests in step with the code: update the matching `C<ClassUnderTest>Tests.cpp` when a class changes. Add every new test file, and every production source file that the tests need, to `UnitTests\UnitTests.vcxproj` and `UnitTests\UnitTests.vcxproj.filters`.
+- The tests run during every build of `UnitTests` and a failing test fails the build, so update the tests in the same change as the code, keep them quick, and never let a test wait for input. Keep the post-build event when you edit `UnitTests.vcxproj`.
 - Name a test `Method_Condition_ExpectedResult`, for example `Delete_FirstOfThree_MovesTheLastFileIntoItsSlot`.
 - Create files only inside a `TestHelpers::CTempFolder`, which makes a unique folder under `%TEMP%` and removes it afterwards. Call `srand` first when a test depends on generated codes.
 - Do not create the MFC dialogs in a test. Replay the calls that a handler makes, as `TestHelpers::StoreFile` and `CNetworkSession` (in `CNetworkWorkflowTests.cpp`) do.
